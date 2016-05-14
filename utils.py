@@ -30,13 +30,11 @@ from sklearn import tree
 from sklearn.externals import joblib
 from sklearn.metrics import roc_curve, auc,roc_auc_score
 import sklearn.linear_model as lm
-    
-def predict(X,label):
-    y=X[label]
-    X=X.drop(['churn','appetency','upselling',label],axis='columns')
-    clf = joblib.load('treeClassifer.pkl') 
-    print 'predict'
-    print clf.predict(X),clf.predict_proba(X)
+from sklearn.neighbors import KNeighborsClassifier
+from itertools import cycle
+from sklearn.cluster import AffinityPropagation
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import scale    
 def auc_compute(actual,predictions):
     false_positive_rate, true_positive_rate, thresholds = roc_curve(actual, predictions)
     roc_auc = auc(false_positive_rate, true_positive_rate)
@@ -50,6 +48,9 @@ def auc_compute(actual,predictions):
     plt.ylabel('True Positive Rate')
     plt.xlabel('False Positive Rate')
     plt.show()   
+    # may differ
+    print auc(false_positive_rate, true_positive_rate)
+    print roc_auc_score(actual,predictions)
 
 def GNBClassifier(X,label):
     gnb = GaussianNB()
@@ -61,32 +62,27 @@ def GNBClassifier(X,label):
     print("Number of mislabeled points out of a total %d points : %d"
       % (X.shape[0],(y_test != y_pred).sum()))
     
-from sklearn.neighbors import KNeighborsClassifier
-from itertools import cycle
-from sklearn.cluster import AffinityPropagation
+
 def knnClassifer(X,label):
     neigh = KNeighborsClassifier(n_neighbors=3)
     y=X[label]
     X=X.drop(['churn','appetency','upselling',label],axis='columns')
     neigh.fit(X,y)
-    
-    
+
+
+def randScore(est,labels_true):
+    labels = est.labels_
+    n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+    print('Estimated number of clusters: %d' % n_clusters_)
+    print("Adjusted Rand Index: %0.3f"
+          % metrics.adjusted_rand_score(labels_true, labels))
 def km(X,label):
     from sklearn.cluster import KMeans
     est=KMeans(n_clusters=2)
     labels_true=X[label]
     X=X.drop(['churn','appetency','upselling',label],axis='columns')
-    name='AffinityPropagation'
-    t=time()
     db = est.fit(X,labels_true)
-    labels = db.labels_
-    n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
-    
-    print('Estimated estimator: %s' % name)
-    print('Estimated number of clusters: %d' % n_clusters_)
-    print("Adjusted Rand Index: %0.3f"
-          % metrics.adjusted_rand_score(labels_true, labels))
-    print('time %d'% (time()-t))
+    randScore(db,labels_true)
 #    random_state = 170
 #    y_pred = KMeans(n_clusters=2, random_state=random_state).fit_predict(X)
 #    
@@ -94,8 +90,7 @@ def km(X,label):
 #    plt.scatter(X[:, 0], X[:, 1], c=y_pred)
 #    plt.title("Incorrect Number of Blobs")
     
-    from sklearn.decomposition import PCA
-    from sklearn.preprocessing import scale
+    
     ###############################################################################
     # Visualize the results on PCA-reduced data
     data = scale(X)
@@ -136,38 +131,6 @@ def km(X,label):
     plt.xticks(())
     plt.yticks(())
     plt.show()
-    
-#    # Anisotropicly distributed data
-#    transformation = [[ 0.60834549, -0.63667341], [-0.40887718, 0.85253229]]
-#    X_aniso = np.dot(X, transformation)
-#    y_pred = KMeans(n_clusters=3, random_state=random_state).fit_predict(X_aniso)
-#    
-#    plt.subplot(222)
-#    plt.scatter(X_aniso[:, 0], X_aniso[:, 1], c=y_pred)
-#    plt.title("Anisotropicly Distributed Blobs")
-    
-    
-    plt.show()    
-    
-#    plt.close('all')
-#    plt.figure(1)
-#    plt.clf()
-#    cluster_centers_indices = db.cluster_centers_ 
-#    labels = db.labels_
-#    colors = cycle('bgrcmykbgrcmykbgrcmykbgrcmyk')
-#    for k, col in zip(range(n_clusters_), colors):
-#        class_members = labels == k
-#        cluster_center = X[cluster_centers_indices[k]]
-#        plt.plot(X[class_members, 0], X[class_members, 1], col + '.')
-#        plt.plot(cluster_center[0], cluster_center[1], 'o', markerfacecolor=col,
-#                 markeredgecolor='k', markersize=14)
-#        for x in X[class_members]:
-#            plt.plot([cluster_center[0], x[0]], [cluster_center[1], x[1]], col)
-#    
-#    plt.title('Estimated number of clusters: %d' % n_clusters_)
-#    plt.show()
-
-
 
 def LRClassifer(X,label):
     clf = lm.LogisticRegression()
@@ -175,54 +138,94 @@ def LRClassifer(X,label):
     X=X.drop(['churn','appetency','upselling',label],axis='columns')
     X_train, X_test, y_train, y_test = cross_validation.train_test_split(
      X, y, test_size=0.2, random_state=0)
-#    clf = clf.fit(X, y)
     clf = clf.fit(X_train, y_train)
-#    joblib.dump(clf, 'treeClassifer.pkl') 
-#    print('10-fold cross validation:\n')
-#    start_time = time()
-#    scores = cross_validation.cross_val_score(clf, X,y, cv=10, scoring='accuracy')
-#    print(label+"Accuracy: %0.2f (+/- %0.2f) [%s]" % (scores.mean(), scores.std(), 'DecisionTreeClassifier'))
-#    print("---Classifier %s use %s seconds ---" %('DecisionTreeClassifier', (time() - start_time)))
     print(label+":\n%s" % (
         metrics.classification_report(
         y_test,
         clf.predict(X_test))))
-#    print roc_auc_score(y, clf.predict(X))
+    print roc_auc_score(y_test, clf.predict(X_train))
     plt_cm(y_test,clf.predict(X_test),[-1,1])
+def cross(est,X,y,name):
+    print('10-fold cross validation:\n')
+    start_time = time()
+    scores = cross_validation.cross_val_score(est, X,y, cv=10, scoring ='f1')
+    print(" f1: %0.2f (+/- %0.2f) [%s]" % (scores.mean(), scores.std(), name))
+    print("---Classifier %s use %s seconds ---" %(name, (time() - start_time)))
     
-#    false_positive_rate, true_positive_rate, thresholds = roc_curve(y, clf.predict_proba(X)[:,1])
-# may differ
-#    print auc(false_positive_rate, true_positive_rate)
-#    print roc_auc_score(y, clf.predict(X))   
+def featureImp(X,y,forest):
+    forest.fit(X, y)
+    importances = forest.feature_importances_
+    std = np.std([tree.feature_importances_ for tree in forest.estimators_],
+                 axis=0)
+    indices = np.argsort(importances)[::-1]
+    # Print the feature ranking
+#    print("Feature ranking:")
+#    
+#    for f in range(X.shape[1]):
+#        print("%d. feature %d (%f)" % (f + 1, indices[f], importances[indices[f]]))
+#    
+#    # Plot the feature importances of the forest
+#    plt.figure()
+#    plt.title("Feature importances")
+#    plt.bar(range(X.shape[1]), importances[indices],
+#           color="r", yerr=std[indices], align="center")
+#    plt.xticks(range(X.shape[1]), indices)
+#    plt.xlim([-1, X.shape[1]])
+#    plt.show()
+    cross(forest,X,y,'ETs')
+    return np.array(indices)[:20]
+    
 def treeClassifer(X,label):
-    clf = tree.DecisionTreeClassifier()
+    est = DecisionTreeClassifier()
     y=X[label]
     X=X.drop(['churn','appetency','upselling',label],axis='columns')
+    X=preprocessing.scale(X)
     X_train, X_test, y_train, y_test = cross_validation.train_test_split(
      X, y, test_size=0.4, random_state=0)
-#    clf = clf.fit(X, y)
-    clf = clf.fit(X_train, y_train)
-#    joblib.dump(clf, 'treeClassifer.pkl') 
-#    print('10-fold cross validation:\n')
-#    start_time = time()
-#    scores = cross_validation.cross_val_score(clf, X,y, cv=10, scoring='accuracy')
-#    print(label+"Accuracy: %0.2f (+/- %0.2f) [%s]" % (scores.mean(), scores.std(), 'DecisionTreeClassifier'))
-#    print("---Classifier %s use %s seconds ---" %('DecisionTreeClassifier', (time() - start_time)))
-    print(label+":\n%s" % (
-        metrics.classification_report(
-        y_test,
-        clf.predict(X_test))))
-#    print roc_auc_score(y, clf.predict(X))
-    plt_cm(y_test,clf.predict(X_test),[-1,1])
+#    clf = clf.fit(X_train, y_train)
+    est = est.fit(X, y)
+    cross(est,X,y,'DT')
     
-#    false_positive_rate, true_positive_rate, thresholds = roc_curve(y, clf.predict_proba(X)[:,1])
-# may differ
-#    print auc(false_positive_rate, true_positive_rate)
-#    print roc_auc_score(y, clf.predict(X))
+    importances = est.feature_importances_
+#    std = np.std([tree.feature_importances_ for tree in clf.estimators_],
+#                 axis=0)
+    indices = np.argsort(importances)[::-1]
+    
+    # Print the feature ranking
+    print("Feature ranking:")
+    
+    for f in range(X.shape[1]):
+        print("%d. feature %d (%f)" % (f + 1, indices[f], importances[indices[f]]))
+    
+    # Plot the feature importances of the forest
+    plt.figure()
+    plt.title("Feature importances")
+    plt.bar(range(X.shape[1]), importances[indices],
+           color="r",  align="center")
+    plt.xticks(range(X.shape[1]), indices)
+    plt.xlim([-1, X.shape[1]])
+    plt.show()
+    print indices[:20]
+    return indices[:20]
+#    best_features= intersection(featureImp(X,y,ExtraTreesClassifier(n_estimators=250,
+#                              random_state=0))[:10],indices[:10])
+#    print best_features
+      
+                    
+#    print(label+":\n%s" % (
+#        metrics.classification_report(
+#        y_test,
+#        clf.predict(X_test))))
+#    plt_cm(y_test,clf.predict(X_test),[-1,1])
+    
+def intersection(a,b):
+    print a,b
+    return list(set(a).intersection(set(b)))
 
 def classification(X,label):
     y=X[label]
     X=X.drop(['churn','appetency','upselling',label],axis='columns')
+    
     clf=ExtraTreesClassifier(n_estimators=10,max_depth=None,min_samples_split=1,random_state=0)
     clf1 = LogisticRegression()
     clf2 = RandomForestClassifier()
@@ -231,14 +234,9 @@ def classification(X,label):
     clf5 = GradientBoostingClassifier(n_estimators=100, learning_rate=1.0,max_depth=1, random_state=0)
     clf6 = DecisionTreeClassifier(max_depth=None, min_samples_split=1,random_state=0)
     eclf = VotingClassifier(estimators=[('lr', clf1), ('rf', clf2), 
-                                        ('gnb', clf3),('ab',clf4),('gd',clf5),('dt',clf6)],
+                                        ('gnb', clf3),('ab',clf4),('gd',clf5),('dt',clf6),('ETs',clf)],
                                          voting='soft')
     eclf.fit(X, y)
-    print('5-fold cross validation:\n')
-    start_time = time()
-    scores = cross_validation.cross_val_score(eclf, X,y, cv=5, scoring='accuracy')
-    print("Accuracy: %0.2f (+/- %0.2f) [%s]" % (scores.mean(), scores.std(), 'Ensemble'))
-    print("---Classifier %s use %s seconds ---" %('Ensemble', (time() - start_time)))
 def convert(x):
      le = preprocessing.LabelEncoder()
      return le.fit_transform(x)
@@ -246,16 +244,24 @@ def convert(x):
 def inpute(X):
     c=X.columns
     imp = Imputer(missing_values='NaN', strategy='mean', axis=0)
-    return pd.DataFrame(imp.fit_transform(X),columns=c)         
+    return pd.DataFrame(imp.fit_transform(X),columns=c)   
+      
 def inpute_category(X):
     c=X.columns
     imp = Imputer(missing_values='NaN', strategy='most_frequent', axis=0)
     return pd.DataFrame(imp.fit_transform(X),columns=c)
     
 def normalize_df(X):
-    norm_X=preprocessing.normalize(X)
-    return norm_X
+    c=X.columns
+    # normalize the data attributes
+    normalized_X = preprocessing.normalize(X)
+# standardize the data attributes
+    standardized_X = preprocessing.scale(X)
     
+    min_max_X=preprocessing.MinMaxScaler(X)
+    
+    return pd.DataFrame(min_max_X,columns=c)
+   
 def fn_timer(function):
   @wraps(function)
   def function_timer(*args, **kwargs):
@@ -269,8 +275,9 @@ def fn_timer(function):
   return function_timer
   
 def selectFeaturesThres(X):
+    c=X.columns
     sel = VarianceThreshold(threshold=(.8 * (1 - .8)))
-    return sel.fit_transform(X)
+    return pd.DataFrame(sel.fit_transform(X),columns=c)
  
 @fn_timer 
 def selectFeatures(X,y,k):

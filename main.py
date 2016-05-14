@@ -37,14 +37,14 @@ if __name__ == "__main__":
     appetency.columns=['appetency']
     upselling.columns=['upselling']
     df=pd.concat([df,churn,appetency,upselling],axis=1) # concat data and label
-    
     # comment start
     # divide the data into two classes
     #comment end
     df=df.dropna(axis='columns',how='all')
+    
     df_rank=df.rank() # rank the columns
     df_=df[df.churn==-1] # choose the label == -1
-    df=df[df.churn==1] # choose the label == 1
+#    df=df[df.churn==1]# choose the label == 1
    
 #    null=pd.isnull(df) 
 #    isnull=df.isnull().any()
@@ -69,6 +69,8 @@ if __name__ == "__main__":
     #comment end
     df=df[features] 
     df_=df_[features]
+    df_tmp=df.copy()
+    df_tmp1=df_.copy()
 #    df=df.iloc[minn.index,:].dropna(axis='columns',how='any')
     
     # comment start
@@ -86,21 +88,30 @@ if __name__ == "__main__":
     des_n_count=des_n.loc['count']/df_.shape[0]
     des_n_count=des_n_count[des_n_count>a]
     des_diff= list(set(des_p_count.index.values).difference(
-    set(des_n_count.index.values)).union(set(['churn','appetency','upselling']))) # diff the two classes features
+    set(des_n_count.index.values))) # diff the two classes features
     des_p=des_p[des_diff]
     
-    
+    #[ 83 134 188 162 109  94 101 155 135 137] [175  94  56 134 211  66  74  73  72  71]
+    #[ 4 12  9  8 10 16  1 18 19 17] [ 1  4 12 13 19  8  2  3  5  6]
     # comment start
     # choose the features
     #comment end
-    dfd_n=df_[des_diff]
-    dfd=df[des_diff]
+    flag_all=True
+    labels=['churn','appetency','upselling']
+#    fea=[83,134, 188, 162, 109,  94, 101, 155, 135 ,137,175,56,211,66]
+    des_diff=np.append(des_diff,labels)
+#    des_diff=['Var8','Var6','Var2','Var21','Var3','Var12','Var20','Var4','Var18','churn','appetency','upselling']
+    if (flag_all):
+        dfd_n=df_
+        dfd=df
+    else:
+        dfd_n=df_[des_diff]
+        dfd=df[des_diff]
     
     # comment start
     # preprocess the data
     #comment end
-    dfd_n=df_
-    dfd=df
+
 #    dfd_any=df.dropna(axis='columns',how='any')
     
     # comment start
@@ -108,7 +119,6 @@ if __name__ == "__main__":
     #comment end
     obj=dfd.select_dtypes(include=['object'])
     obj_n=dfd_n.select_dtypes(include=['object'])
-#    obj_any=dfd.select_dtypes(include=['object'])
     category=obj.columns.values # string features' names
     
     # comment start
@@ -116,22 +126,38 @@ if __name__ == "__main__":
     #comment end
     numerical=dfd.select_dtypes(exclude=['object'])
     numerical_n=dfd_n.select_dtypes(exclude=['object'])
+#    var=u.normalize_df(numerical).var()
+#    var_n=u.normalize_df(numerical_n).var() 
+    var=numerical.var()
+    std=numerical.std()
+    std.name='std'
+    var.name='var'
+    mean=numerical.mean()
+    mean.name='mean'
+    mean_n=numerical_n.mean()
+    mean_n.name='mean_n'
+    var_n=numerical_n.var()  
+    std_n=numerical_n.std()
+    std_n.name='std_n'
+    var_n.name='var_n'
+    temp=pd.DataFrame([var,var_n,std,std_n,mean,mean_n])
+     # comment start
+    # convert categorical to numerical
+    #comment end
+    obj= obj.apply(u.convert,axis='columns')
+    obj_n= obj_n.apply(u.convert,axis='columns')
     
     # comment start
     # impute the missing values
     #comment end
     impute_=u.inpute(numerical)
     impute_n=u.inpute(numerical_n)
-    numerical_catagory=impute_.columns.values
+    numerical_category=impute_.columns.values
     
     impute_des=impute_.describe()
+    impute_n_des=impute_n.describe()
     num_des=numerical.describe()
-    
-    # comment start
-    # convert categorical to numerical
-    #comment end
-    obj= obj[category].apply(u.convert,axis='columns')
-    obj_n= obj_n[category].apply(u.convert,axis='columns')
+   
     
 #    obj=cat(obj)
 #    obj=obj.apply(u.inpute)
@@ -139,20 +165,28 @@ if __name__ == "__main__":
     
 #    print obj.isnull().sum().sum()
     
+    dfd_des_b=dfd.describe()
+    dfd_n_des_b=dfd_n.describe()
+    
+#    diff= list(set(obj.columns.values).intersection(
+#    set(impute_.columns.values))) 
     # comment start
     # replace the data by the preprocessed one
     #comment end
-    dfd.loc[:,category]=dfd[category].apply(u.convert,axis='columns')
-    dfd_n.loc[:,category]=dfd_n[category].apply(u.convert,axis='columns')
-    dfd=impute_
-    dfd_n=impute_n
-    
-    dfd.loc[:,numerical_catagory]=impute_
-    dfd_n.loc[:,numerical_catagory]=impute_n    
-    
+    if (category.shape[0]!=0):
+        dfd_n[category]=obj_n
+        dfd[category]=obj
+        dfd=u.inpute(dfd)
+        dfd_n=u.inpute(dfd_n)
+    else:
+        dfd=impute_
+        dfd_n=impute_n
 #    top=dfd[f]
 #    top_des=top.describe()
 #    top=u.inpute(top)
+
+#    dfd=u.selectFeaturesThres(dfd)    
+      
     
     dfd_des=dfd.describe()
     dfd_n_des=dfd_n.describe()
@@ -164,14 +198,21 @@ if __name__ == "__main__":
     #comment end
     train=pd.concat([dfd,dfd_n])
     train_des=train.describe()
-    
     # comment start
     # classication
     #comment end
 #    u.GNBClassifier(dfd,'churn')
-    
-#    u.treeClassifer(dfd,'appetency')
-#    u.classification(dfd,'churn')
+#    dfd=pd.concat([dfd[dfd.columns.values[fea]],dfd[labels]],axis='columns')
+#    bf=u.treeClassifer(dfd,'churn')
+#    df_tmp=df_tmp[df_tmp.columns.values[bf]]
+#    print df_tmp.describe()
+#    df_tmp1=df_tmp1[df_tmp1.columns.values[bf]]
+#    print df_tmp1.describe()
+    t=dfd.loc[:,labels]    
+    t1=dfd.drop(['churn','appetency','upselling'],axis='columns')[dfd.columns.values[bf]]
+    train=pd.concat([t1,t],axis='columns')
+#    u.treeClassifer(train,'churn')
+#    u.classification(train,'churn')
 #    plt.matshow(train.corr())
 #    beta2 = (train.corr() * df['b'].std() * df['a'].std() / df['a'].var()).ix[0, 1]
 #    print(beta2)

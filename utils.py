@@ -145,12 +145,24 @@ def LRClassifer(X,label):
         clf.predict(X_test))))
     print roc_auc_score(y_test, clf.predict(X_train))
     plt_cm(y_test,clf.predict(X_test),[-1,1])
-def cross(est,X,y,name):
+def cross(est,X,y,name,cm=True):
+    expected=y
+    predicted=est.predict(X)
+    if(cm):
+        print(metrics.classification_report(expected,predicted))  
+        print(metrics.confusion_matrix(expected,predicted))
     print('10-fold cross validation:\n')
     start_time = time()
-    scores = cross_validation.cross_val_score(est, X,y, cv=10, scoring ='f1')
-    print(" f1: %0.2f (+/- %0.2f) [%s]" % (scores.mean(), scores.std(), name))
+    f1 = cross_validation.cross_val_score(est, X,y, cv=10, scoring ='f1')
+    print(" f1: %0.2f (+/- %0.2f) [%s]" % (f1.mean(), f1.std(), name))
+    scores = cross_validation.cross_val_score(est, X,y, cv=10, scoring ='accuracy')
+    print(" accuracy: %0.2f (+/- %0.2f) [%s]" % (scores.mean(), scores.std(), name))
+    scores = cross_validation.cross_val_score(est, X,y, cv=10, scoring ='recall')
+    print(" roc_auc: %0.2f (+/- %0.2f) [%s]" % (scores.mean(), scores.std(), name))
+    scores = cross_validation.cross_val_score(est, X,y, cv=10, scoring ='roc_auc')
+    print(" recall: %0.2f (+/- %0.2f) [%s]" % (scores.mean(), scores.std(), name))
     print("---Classifier %s use %s seconds ---" %(name, (time() - start_time)))
+    return f1
     
 def featureImp(X,y,forest):
     forest.fit(X, y)
@@ -158,20 +170,19 @@ def featureImp(X,y,forest):
     std = np.std([tree.feature_importances_ for tree in forest.estimators_],
                  axis=0)
     indices = np.argsort(importances)[::-1]
-    # Print the feature ranking
-#    print("Feature ranking:")
-#    
-#    for f in range(X.shape[1]):
-#        print("%d. feature %d (%f)" % (f + 1, indices[f], importances[indices[f]]))
-#    
-#    # Plot the feature importances of the forest
-#    plt.figure()
-#    plt.title("Feature importances")
-#    plt.bar(range(X.shape[1]), importances[indices],
-#           color="r", yerr=std[indices], align="center")
-#    plt.xticks(range(X.shape[1]), indices)
-#    plt.xlim([-1, X.shape[1]])
-#    plt.show()
+#     Print the feature ranking
+    print("Feature ranking:")
+    for f in range(X.shape[1]):
+        print("%d. feature %d (%f)" % (f + 1, indices[f], importances[indices[f]]))
+    
+    # Plot the feature importances of the forest
+    plt.figure()
+    plt.title("Feature importances")
+    plt.bar(range(X.shape[1]), importances[indices],
+           color="r", yerr=std[indices], align="center")
+    plt.xticks(range(X.shape[1]), indices)
+    plt.xlim([-1, X.shape[1]])
+    plt.show()
     cross(forest,X,y,'ETs')
     return np.array(indices)[:20]
     
@@ -182,46 +193,81 @@ def treeClassifer(X,label):
     X=preprocessing.scale(X)
     X_train, X_test, y_train, y_test = cross_validation.train_test_split(
      X, y, test_size=0.4, random_state=0)
-#    clf = clf.fit(X_train, y_train)
     est = est.fit(X, y)
-    cross(est,X,y,'DT')
-    
+    f1=cross(est,X,y,'DT')
     importances = est.feature_importances_
-#    std = np.std([tree.feature_importances_ for tree in clf.estimators_],
-#                 axis=0)
     indices = np.argsort(importances)[::-1]
     
     # Print the feature ranking
-    print("Feature ranking:")
-    
-    for f in range(X.shape[1]):
-        print("%d. feature %d (%f)" % (f + 1, indices[f], importances[indices[f]]))
+#    print("Feature ranking:")
+#    
+#    for f in range(X.shape[1]):
+#        print("%d. feature %d (%f)" % (f + 1, indices[f], importances[indices[f]]))
     
     # Plot the feature importances of the forest
-    plt.figure()
-    plt.title("Feature importances")
-    plt.bar(range(X.shape[1]), importances[indices],
-           color="r",  align="center")
-    plt.xticks(range(X.shape[1]), indices)
-    plt.xlim([-1, X.shape[1]])
-    plt.show()
-    print indices[:20]
-    return indices[:20]
+#    plt.figure()
+#    plt.title("Feature importances")
+#    plt.bar(range(X.shape[1]), importances[indices],
+#           color="r",  align="center")
+#    plt.xticks(range(X.shape[1]), indices)
+#    plt.xlim([-1, X.shape[1]])
+#    plt.show()
 #    best_features= intersection(featureImp(X,y,ExtraTreesClassifier(n_estimators=250,
 #                              random_state=0))[:10],indices[:10])
-#    print best_features
+    return f1
       
-                    
-#    print(label+":\n%s" % (
-#        metrics.classification_report(
-#        y_test,
-#        clf.predict(X_test))))
-#    plt_cm(y_test,clf.predict(X_test),[-1,1])
+def treeRegression(X,label):
+    rng = np.random.RandomState(1)
+    y=X[label]
+    X=X.drop(['churn','appetency','upselling',label],axis='columns')
+    X=preprocessing.scale(X)
+    from sklearn.tree import DecisionTreeRegressor
+    from sklearn.ensemble import AdaBoostRegressor
+        # Fit regression model
+    regr_1 = DecisionTreeRegressor(max_depth=4)
+    
+    regr_2 = AdaBoostRegressor(DecisionTreeRegressor(max_depth=4),
+                              n_estimators=300, random_state=rng)
+
+    regr_1.fit(X, y)
+    regr_2.fit(X, y)
+    
+#    f1=cross(regr_1,X,y,'DTR',False)
+#    f1=cross(regr_2,X,y,'ADBR',False)
+    # Predict
+    y_1 = regr_1.predict(X)
+    y_2 = regr_2.predict(X)
+    print y_1,y_2
+#    # Plot the results
+#    plt.figure()
+#    plt.scatter(X, y, c="k", label="training samples")
+#    plt.plot(X, y_1, c="g", label="n_estimators=1", linewidth=2)
+#    plt.plot(X, y_2, c="r", label="n_estimators=300", linewidth=2)
+#    plt.xlabel("data")
+#    plt.ylabel("target")
+#    plt.title("Boosted Decision Tree Regression")
+#    plt.legend()
+#    plt.show()
+def predict(X,label,est,name):
+    y=X[label]
+    X=X.drop(['churn','appetency','upselling',label],axis='columns')
+    X=preprocessing.scale(X)
+#    X_train, X_test, y_train, y_test = cross_validation.train_test_split(
+#     X, y, test_size=0.4, random_state=0)
+#    clf = clf.fit(X_train, y_train)
+    est = est.fit(X, y)
+    expected=y
+    predicted=est.predict(X)
+    print(metrics.classification_report(expected,predicted))  
+    print(metrics.confusion_matrix(expected,predicted))
+    f1=cross(est,X,y,name)
+    return f1
     
 def intersection(a,b):
-    print a,b
     return list(set(a).intersection(set(b)))
-
+def intersection_count(a,b):
+    unique=list(set(a).intersection(set(b)))
+    return float(len(unique))/len(a)
 def classification(X,label):
     y=X[label]
     X=X.drop(['churn','appetency','upselling',label],axis='columns')

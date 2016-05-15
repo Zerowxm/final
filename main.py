@@ -15,9 +15,10 @@ def loadData(file,header=0):
     return df
     
 def cat(obj):
-   for col in obj.columns:
-         obj[col]=obj[col].astype('category')    
-   return obj
+   tmp=obj.copy()
+   for col in tmp.columns:
+         tmp[col]=tmp[col].astype('category')    
+   return tmp
    
 
    
@@ -41,22 +42,29 @@ if __name__ == "__main__":
     # divide the data into two classes
     #comment end
     df=df.dropna(axis='columns',how='all')
-    
+    df_all=df.copy()
+    df_des=df.describe()
     df_rank=df.rank() # rank the columns
     df_=df[df.churn==-1] # choose the label == -1
-#    df=df[df.churn==1]# choose the label == 1
+    df=df[df.churn==1]# choose the label == 1
    
-#    null=pd.isnull(df) 
-#    isnull=df.isnull().any()
+    null=pd.isnull(df) 
+    isnull=df.isnull().any()
     
     
     # comment start
     # sort the features by missing values'count
     #comment end
     num=df.isnull().sum().sort_values(ascending=True,kind='quicksort') # sort the columns by the missing values' count
-    thres=40000    
-    num_=num[num<thres] # select data by shres
+    num_n=df_.isnull().sum().sort_values(ascending=True,kind='quicksort')
+#    thres=40000    
+#    num_=num[num<thres] # select data by shres
     num_per=df.notnull().sum(axis=1).sort_values(ascending=True,kind='quicksort') # every sample's  missing count
+    num_per_des=num_per.describe()
+    num_per_n=df_.notnull().sum(axis=1).sort_values(ascending=True,kind='quicksort') # every sample's  missing count
+    num_per_n_des=num_per_n.describe()
+    num_per_n=num_per_n[num_per_n<num_per.min()].index
+    min_sam=df_.loc[num_per_n]
     mean_f=num_per.mean() 
     minn= num_per[num_per>=num_per.mean()]
     features=np.array(num.index.tolist())
@@ -82,14 +90,14 @@ if __name__ == "__main__":
     # comment start
     # choose the features by the missing values'shres , p = 1 n=-1
     #comment end
-    a=0.9
+    a=0.8
     des_p_count=des_p.loc['count']/df.shape[0]
     des_p_count=des_p_count[des_p_count>a]
     des_n_count=des_n.loc['count']/df_.shape[0]
     des_n_count=des_n_count[des_n_count>a]
     des_diff= list(set(des_p_count.index.values).difference(
     set(des_n_count.index.values))) # diff the two classes features
-    des_p=des_p[des_diff]
+#    des_p=des_p[des_diff]
     
     #[ 83 134 188 162 109  94 101 155 135 137] [175  94  56 134 211  66  74  73  72  71]
     #[ 4 12  9  8 10 16  1 18 19 17] [ 1  4 12 13 19  8  2  3  5  6]
@@ -107,7 +115,10 @@ if __name__ == "__main__":
     else:
         dfd_n=df_[des_diff]
         dfd=df[des_diff]
-    
+#    cate_p=cat(dfd).describe()
+#    cate_p.loc['count',:]=cate_p.loc['count']/cate_p.shape[0]
+#    cate_n=cat(dfd_n).describe()
+#    cate_n.loc['count':,]=cate_n.loc['count']/cate_n.shape[0]
     # comment start
     # preprocess the data
     #comment end
@@ -119,29 +130,81 @@ if __name__ == "__main__":
     #comment end
     obj=dfd.select_dtypes(include=['object'])
     obj_n=dfd_n.select_dtypes(include=['object'])
-    category=obj.columns.values # string features' names
+    category=obj.columns.values.tolist()  # string features' names
+    
+    is_selected=True
+    if(is_selected):
+        arr=[]
+        for col in category:
+            unique=np.array(obj[col].unique())
+            unique_n=np.array(obj_n[col].unique())
+            unique_inter= u.intersection_count(unique,unique_n)
+            arr.append(unique_inter)
+        arr=np.array(arr)
+        indices=np.where(arr>0.8)[0]
+        category_del=[category[i] for i in indices ] 
+        category=[x for x in category if x not in category_del]
+        obj=obj.drop(category_del,axis='columns')
+        obj_n=obj_n.drop(category_del,axis='columns')
+        dfd=dfd.drop(category_del,axis='columns')
+        dfd_n=dfd_n.drop(category_del,axis='columns')
+    
+    if(obj.shape[1]!=0):
+        cate_p=cat(obj).describe()
+        cate_p.loc['count',:]=cate_p.loc['count']/obj.shape[0]
+        cate_n=cat(obj_n).describe()
+        cate_n.loc['count',:]=cate_n.loc['count']/obj_n.shape[0]
+    
     
     # comment start
     # extract the numerical feautures
     #comment end
+    is_drop=False
+    if(is_drop):
+        classes=dfd[labels].reset_index(drop=True)
+        classes_n=dfd_n[labels].reset_index(drop=True)
+    else:
+        classes=dfd[labels]
+        classes_n=dfd_n[labels]
+    dfd=dfd.drop(labels,axis='columns')
+    dfd_n=dfd_n.drop(labels,axis='columns')
     numerical=dfd.select_dtypes(exclude=['object'])
     numerical_n=dfd_n.select_dtypes(exclude=['object'])
+    numerical_cate=cat(numerical).describe()
+    numerical_n_cate=cat(numerical_n).describe()
+    numerical_des=numerical.describe()
+    numerical_n_des=numerical_n.describe()
+    numerical_unique=numerical.iloc[:,0].unique()
 #    var=u.normalize_df(numerical).var()
 #    var_n=u.normalize_df(numerical_n).var() 
-    var=numerical.var()
-    std=numerical.std()
-    std.name='std'
-    var.name='var'
-    mean=numerical.mean()
-    mean.name='mean'
-    mean_n=numerical_n.mean()
-    mean_n.name='mean_n'
-    var_n=numerical_n.var()  
-    std_n=numerical_n.std()
-    std_n.name='std_n'
-    var_n.name='var_n'
-    temp=pd.DataFrame([var,var_n,std,std_n,mean,mean_n])
-     # comment start
+    bug=True
+    if(bug):
+        count=numerical_cate.loc['count']/numerical.shape[0]
+        count.name='count'
+        count_n=numerical_n_cate.loc['count']/numerical_n.shape[0]
+        count_n.name='count_n'
+        var=numerical.var()
+        var.name='var'
+        std=numerical.std()
+        std.name='std'
+        mean=numerical.mean()
+        mean.name='mean'
+        mean_n=numerical_n.mean()
+        mean_n.name='mean_n'
+        var_n=numerical_n.var()  
+        var_n.name='var_n'
+        std_n=numerical_n.std()
+        std_n.name='std_n'
+        max_n=numerical_n.max()
+        max_n.name='max_n'
+        max_=numerical.max()
+        max_.name='max'
+        min_n=numerical_n.min()
+        min_n.name='min_n'
+        min_=numerical.min()
+        min_.name='min'
+        temp=pd.DataFrame([count,count_n,var,var_n,std,std_n,mean,mean_n,min_,min_n,max_,max_n])
+    # comment start
     # convert categorical to numerical
     #comment end
     obj= obj.apply(u.convert,axis='columns')
@@ -152,12 +215,26 @@ if __name__ == "__main__":
     #comment end
     impute_=u.inpute(numerical)
     impute_n=u.inpute(numerical_n)
-    numerical_category=impute_.columns.values
+    numerical_category=numerical.columns.values.tolist()
     
     impute_des=impute_.describe()
     impute_n_des=impute_n.describe()
     num_des=numerical.describe()
-   
+    
+    # comment start
+    # f1!!!!!!
+    #comment end
+    acc_f1=False
+    if(acc_f1):
+        f1=[]
+        for col in numerical_category[:10]:
+            col=np.append(col,labels)
+            df_col=df_all[col]
+            df_col=df_col.dropna(axis='rows')
+            print df_col.shape
+            f1.append(u.treeClassifer(df_col,'churn'))
+    
+    
     
 #    obj=cat(obj)
 #    obj=obj.apply(u.inpute)
@@ -173,14 +250,16 @@ if __name__ == "__main__":
     # comment start
     # replace the data by the preprocessed one
     #comment end
-    if (category.shape[0]!=0):
-        dfd_n[category]=obj_n
-        dfd[category]=obj
-        dfd=u.inpute(dfd)
-        dfd_n=u.inpute(dfd_n)
-    else:
-        dfd=impute_
-        dfd_n=impute_n
+    divide=False
+    if(divide):
+        if (len(category)!=0):
+            dfd_n[category]=obj_n
+            dfd[category]=obj
+            dfd=u.inpute(dfd)
+            dfd_n=u.inpute(dfd_n)
+        else:
+            dfd=impute_
+            dfd_n=impute_n
 #    top=dfd[f]
 #    top_des=top.describe()
 #    top=u.inpute(top)
@@ -196,21 +275,29 @@ if __name__ == "__main__":
     # comment start
     # get the train data
     #comment end
-    train=pd.concat([dfd,dfd_n])
-    train_des=train.describe()
+    dfd=pd.concat([dfd,classes],axis='columns')
+    dfd_n=pd.concat([dfd_n,classes_n],axis='columns')
+    train=pd.concat([dfd,dfd_n.sample(dfd.shape[0])])
+    train_features=train[category].apply(u.convert,axis='columns')
+    train[category]=train_features
+    category.extend(labels)
+    train=train[category]
+#    train_des=train.describe()
     # comment start
     # classication
     #comment end
 #    u.GNBClassifier(dfd,'churn')
 #    dfd=pd.concat([dfd[dfd.columns.values[fea]],dfd[labels]],axis='columns')
-#    bf=u.treeClassifer(dfd,'churn')
+#    f1=u.treeClassifer(train,'churn')
+#    u.treeRegression(train,'churn')
 #    df_tmp=df_tmp[df_tmp.columns.values[bf]]
 #    print df_tmp.describe()
 #    df_tmp1=df_tmp1[df_tmp1.columns.values[bf]]
 #    print df_tmp1.describe()
-    t=dfd.loc[:,labels]    
-    t1=dfd.drop(['churn','appetency','upselling'],axis='columns')[dfd.columns.values[bf]]
-    train=pd.concat([t1,t],axis='columns')
+#    t=dfd.loc[:,labels]    
+#    t1=dfd.drop(['churn','appetency','upselling'],axis='columns')[dfd.columns.values[bf]]
+#    train=pd.concat([t1,t],axis='columns')
+    
 #    u.treeClassifer(train,'churn')
 #    u.classification(train,'churn')
 #    plt.matshow(train.corr())

@@ -146,23 +146,23 @@ def LRClassifer(X,label):
     print roc_auc_score(y_test, clf.predict(X_train))
     plt_cm(y_test,clf.predict(X_test),[-1,1])
 def cross(est,X,y,name,cm=True):
-    expected=y
-    predicted=est.predict(X)
-    if(cm):
-        print(metrics.classification_report(expected,predicted))  
-        print(metrics.confusion_matrix(expected,predicted))
-    print('10-fold cross validation:\n')
-    start_time = time()
+#    expected=y
+#    predicted=est.predict(X)
+#    if(cm):
+#        print(metrics.classification_report(expected,predicted))  
+#        print(metrics.confusion_matrix(expected,predicted))
+#    print('10-fold cross validation:\n')
+#    start_time = time()
     f1 = cross_validation.cross_val_score(est, X,y, cv=10, scoring ='f1')
-    print(" f1: %0.2f (+/- %0.2f) [%s]" % (f1.mean(), f1.std(), name))
-    scores = cross_validation.cross_val_score(est, X,y, cv=10, scoring ='accuracy')
-    print(" accuracy: %0.2f (+/- %0.2f) [%s]" % (scores.mean(), scores.std(), name))
-    scores = cross_validation.cross_val_score(est, X,y, cv=10, scoring ='recall')
-    print(" roc_auc: %0.2f (+/- %0.2f) [%s]" % (scores.mean(), scores.std(), name))
-    scores = cross_validation.cross_val_score(est, X,y, cv=10, scoring ='roc_auc')
-    print(" recall: %0.2f (+/- %0.2f) [%s]" % (scores.mean(), scores.std(), name))
-    print("---Classifier %s use %s seconds ---" %(name, (time() - start_time)))
-    return f1
+#    print(" f1: %0.2f (+/- %0.2f) [%s]" % (f1.mean(), f1.std(), name))
+    accuracy = cross_validation.cross_val_score(est, X,y, cv=10, scoring ='accuracy')
+#    print(" accuracy: %0.2f (+/- %0.2f) [%s]" % (accuracy.mean(), accuracy.std(), name))
+    recall = cross_validation.cross_val_score(est, X,y, cv=10, scoring ='recall')
+#    print(" roc_auc: %0.2f (+/- %0.2f) [%s]" % (recall.mean(), recall.std(), name))
+    roc_auc = cross_validation.cross_val_score(est, X,y, cv=10, scoring ='roc_auc')
+#    print(" recall: %0.2f (+/- %0.2f) [%s]" % (roc_auc.mean(), roc_auc.std(), name))
+#    print("---Classifier %s use %s seconds ---" %(name, (time() - start_time)))
+    return [f1.mean(),accuracy.mean(),recall.mean(),roc_auc.mean()]
     
 def featureImp(X,y,forest):
     forest.fit(X, y)
@@ -195,25 +195,6 @@ def treeClassifer(X,label):
      X, y, test_size=0.4, random_state=0)
     est = est.fit(X, y)
     f1=cross(est,X,y,'DT')
-    importances = est.feature_importances_
-    indices = np.argsort(importances)[::-1]
-    
-    # Print the feature ranking
-#    print("Feature ranking:")
-#    
-#    for f in range(X.shape[1]):
-#        print("%d. feature %d (%f)" % (f + 1, indices[f], importances[indices[f]]))
-    
-    # Plot the feature importances of the forest
-#    plt.figure()
-#    plt.title("Feature importances")
-#    plt.bar(range(X.shape[1]), importances[indices],
-#           color="r",  align="center")
-#    plt.xticks(range(X.shape[1]), indices)
-#    plt.xlim([-1, X.shape[1]])
-#    plt.show()
-#    best_features= intersection(featureImp(X,y,ExtraTreesClassifier(n_estimators=250,
-#                              random_state=0))[:10],indices[:10])
     return f1
       
 def treeRegression(X,label):

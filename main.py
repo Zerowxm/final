@@ -20,8 +20,13 @@ def cat(obj):
          tmp[col]=tmp[col].astype('category')    
    return tmp
    
-
-   
+def test(df):
+    df=df.fillna(0)
+    o=df.select_dtypes(include=['object'])
+    category=o.columns.values.tolist()
+    o= o.apply(u.convert,axis='columns')
+    df[category]=o
+    u.treeClassifer(df,'churn')
 if __name__ == "__main__":
     # comment start
     # read data
@@ -44,10 +49,12 @@ if __name__ == "__main__":
     df=df.dropna(axis='columns',how='all')
     df_all=df.copy()
     df_des=df.describe()
+    label='churn'
     df_rank=df.rank() # rank the columns
-    df_=df[df.churn==-1] # choose the label == -1
-    df=df[df.churn==1]# choose the label == 1
-   
+    df_=df[df[label]==-1] # choose the label == -1
+    df=df[df[label]==1]# choose the label == 1
+#    test(df_all)
+       
     null=pd.isnull(df) 
     isnull=df.isnull().any()
     
@@ -132,7 +139,7 @@ if __name__ == "__main__":
     obj_n=dfd_n.select_dtypes(include=['object'])
     category=obj.columns.values.tolist()  # string features' names
     
-    is_selected=True
+    is_selected=False
     if(is_selected):
         arr=[]
         for col in category:
@@ -180,7 +187,7 @@ if __name__ == "__main__":
     bug=True
     if(bug):
         count=numerical_cate.loc['count']/numerical.shape[0]
-        count.name='count'
+        count.name='count_'
         count_n=numerical_n_cate.loc['count']/numerical_n.shape[0]
         count_n.name='count_n'
         var=numerical.var()
@@ -221,6 +228,7 @@ if __name__ == "__main__":
     impute_n_des=impute_n.describe()
     num_des=numerical.describe()
     
+    
     # comment start
     # f1!!!!!!
     #comment end
@@ -228,23 +236,70 @@ if __name__ == "__main__":
     if(acc_f1):
         f1=[]
         shape=[]
+        positive=[]
+        for col in category:
+            col_label=np.append(col,labels)
+            df_col=df_all[col_label]
+            df_col=df_col.dropna(axis='rows') 
+            df_col[col]=u.convert(df_col[col])
+            shape.append( df_col.shape[0])
+            f1.append(u.selectF(df_col,'churn'))
+            positive.append(df_col[df_col[label]==1].shape[0])
+        np.savetxt('f1_obj.txt',f1)
+        np.savetxt('shape_obj.txt',shape)
+        np.savetxt('positive_obj.txt',positive)
+        
+    acc_f1=False
+    if(acc_f1):
+        f1=[]
+        shape=[]
+        positive=[]
         for col in numerical_category:
-            col=np.append(col,labels)
-            df_col=df_all[col]
+            col_label=np.append(col,labels)
+            df_col=df_all[col_label]
             df_col=df_col.dropna(axis='rows') 
             shape.append( df_col.shape[0])
-            f1.append(u.treeClassifer(df_col,'churn'))
-        np.array(f1).dump(open('f1.npy','wb'))
-        print np.load(open('f1.npy','rb'))
-        open('f1.txt','w').close()
-        np.savetxt('f1.txt',f1)
-        np.array(shape).dump(open('shape.npy','wb'))
-        open('shape.txt','w').close()
-        np.savetxt('shape.txt',shape)
-        print np.loadtxt('f1.txt') , np.loadtxt('shape.txt')
+            f1.append(u.selectF(df_col,'churn'))
+            positive.append(df_col[df_col[label]==1].shape[0])
+        np.savetxt('f1_obj.txt',f1)
+        np.savetxt('shape_obj.txt',shape)
+        
+        positive=[]
+    to_acc=False
+    if(to_acc):
+        for col in numerical_category:
+            col=np.append(col,label)
+            df_col=df_all[col]
+            positive.append(df_col.dropna(axis='rows')[df_all[label]==1].shape[0])
+        np.savetxt('positive.txt',positive)
+        
+    positive=np.loadtxt('positive.txt')
+    f1=np.loadtxt('f1.txt')
+    shape=np.loadtxt('shape.txt')
+    f1_df=pd.DataFrame(f1,columns=['f1','accuracy','recall','roc_auc'])
     
+    f1_df['count_ratio']=pd.Series(shape)/df_all.shape[0]
+    f1_df['positive']=pd.Series(positive)
+    f1_df['positive_ratio']=pd.Series(positive).divide(shape)
+    f1_df=f1_df.transpose()
+    f1_df.columns=numerical_category
+    f1_df_s=u.standardize_df(f1_df.transpose())
     
+    positive=np.loadtxt('positive_obj.txt')
+    f1=np.loadtxt('f1_obj.txt')
+    shape=np.loadtxt('shape_obj.txt')
+    f1_obj_df=pd.DataFrame(f1,columns=['f1','accuracy','precision','recall','negative','positive'])
     
+    f1_obj_df['count_ratio']=pd.Series(shape)/df_all.shape[0]
+    f1_obj_df['positive']=pd.Series(positive)
+    f1_obj_df['positive_ratio']=pd.Series(positive).divide(shape)
+    f1_obj_df=f1_obj_df.transpose()
+    f1_obj_df.columns=category
+    f1_obj_df_s=u.standardize_df(f1_obj_df.transpose())
+    
+    f1_df_s.plot()
+    f1_obj_df_s.plot()
+    plt.show()
 #    obj=cat(obj)
 #    obj=obj.apply(u.inpute)
 #    dfd.fillna(method='bfill')
@@ -285,19 +340,30 @@ if __name__ == "__main__":
     # get the train data
     #comment end
     dfd=pd.concat([dfd,classes],axis='columns')
+    
     dfd_n=pd.concat([dfd_n,classes_n],axis='columns')
-    train=pd.concat([dfd,dfd_n.sample(dfd.shape[0])])
+    train=pd.concat([dfd,dfd_n])
     train_features=train[category].apply(u.convert,axis='columns')
+    
     train[category]=train_features
+    
     category.extend(labels)
     train=train[category]
+    X=train.as_matrix()
+    temp_=temp.append(f1_df)
+#    temp_=pd.concat([temp,f1_df],axis='rows')
+#    smote=u.SMOTE(train[train.churn==1].as_matrix(),100,3)
+#    sample_weight = np.array([5 if i == 0 else 1 for i in y])
+#    sample_weight = [0 if x == -1 else 100 for x in train.churn  ]
 #    train_des=train.describe()
     # comment start
     # classication
     #comment end
-#    u.GNBClassifier(dfd,'churn')
+#    u.GNBClassifier(train,'churn')
+#    u.treeClassifer(train,'churn')
 #    dfd=pd.concat([dfd[dfd.columns.values[fea]],dfd[labels]],axis='columns')
-#    f1=u.treeClassifer(train,'churn')
+#    f1=u.svmClassifer(train,'churn',sample_weight=sample_weight,cv=5)
+    
 #    u.treeRegression(train,'churn')
 #    df_tmp=df_tmp[df_tmp.columns.values[bf]]
 #    print df_tmp.describe()
@@ -337,3 +403,6 @@ if __name__ == "__main__":
 #    df=df[]
 #    plt.title('missing values')
 #    num.plot()
+        
+    
+ 

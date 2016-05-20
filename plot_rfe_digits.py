@@ -22,11 +22,12 @@ import matplotlib.pyplot as plt
 digits = load_digits()
 X = digits.images.reshape((len(digits.images), -1))
 y = digits.target
-
+image=digits.images
 # Create the RFE object and rank each pixel
 svc = SVC(kernel="linear", C=1)
 rfe = RFE(estimator=svc, n_features_to_select=1, step=1)
 rfe.fit(X, y)
+print digits.images[0].shape
 ranking = rfe.ranking_.reshape(digits.images[0].shape)
 
 # Plot pixel ranking

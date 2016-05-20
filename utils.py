@@ -38,7 +38,6 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import scale 
 from sklearn import svm   
 from collections import Counter
-import seaborn as sns
 from sklearn.metrics import cohen_kappa_score, make_scorer
 from skll.metrics import kappa
 plt.style.use('fivethirtyeight') # Good looking plots
@@ -263,6 +262,7 @@ def treeClassiferPredict(X_train,y_train,X_test,y_test ,sample_weight=None,cv=1)
       
 def predict(X,label,est,name):
     y=X[label]
+    columns=X.columns
     X=X.drop(['churn','appetency','upselling',label],axis='columns')
     X=preprocessing.scale(X)
     est = est.fit(X, y)
@@ -274,6 +274,48 @@ def predict(X,label,est,name):
     return f1
 from sklearn import linear_model,neighbors,ensemble
 
+    
+def gbc(X,y,columns_names):
+    gbc = ensemble.GradientBoostingClassifier()
+    gbc.fit(X, y)
+    # Get Feature Importance from the classifier
+    feature_importance = gbc.feature_importances_
+    # Normalize The Features
+    feature_importance = 100.0 * (feature_importance / feature_importance.max())
+    sorted_idx = np.argsort(feature_importance)
+    pos = np.arange(sorted_idx.shape[0]) + .5
+    plt.figure(figsize=(16, 12))
+    plt.barh(pos, feature_importance[sorted_idx], align='center', color='#7A68A6')
+    plt.yticks(pos, np.asanyarray(columns_names)[sorted_idx])
+    plt.xlabel('Relative Importance')
+    plt.title('Variable Importance')
+    plt.show()    
+def stackingClassifier(X_train,y_train,X_test,y_test ):
+    base_algorithms =[ensemble.GradientBoostingClassifier(),RandomForestClassifier(),
+                      AdaBoostClassifier(n_estimators=100)]    
+    stacking_train_dataset = np.zeros(len(y_train), len(base_algorithms))
+    stacking_test_dataset = np.zeros(len(y_test), len(base_algorithms))
+    for i,base_algorithm in enumerate(base_algorithms):
+        stacking_train_dataset[:,i] = base_algorithm.fit(X_train, y_train).predict(X_train)
+        stacking_test_dataset[:,i] = base_algorithm.predict(X_test)
+                
+def classification(X,label):
+    y=X[label]
+    X=X.drop(['churn','appetency','upselling',label],axis='columns')
+    clf=ExtraTreesClassifier(n_estimators=10,max_depth=None,min_samples_split=1,random_state=0)
+    clf1 = LogisticRegression()
+    clf2 = RandomForestClassifier()
+    clf3 = GaussianNB()
+    clf4 = AdaBoostClassifier(n_estimators=100)
+    clf5 = GradientBoostingClassifier(n_estimators=100, learning_rate=1.0,max_depth=1, random_state=0)
+    clf6 = DecisionTreeClassifier(max_depth=None, min_samples_split=1,random_state=0)
+    eclf = VotingClassifier(estimators=[('lr', clf1), ('rf', clf2), 
+                                        ('gnb', clf3),('ab',clf4),('gd',clf5),('dt',clf6),('ETs',clf)],
+                                         voting='soft')
+    eclf.fit(X, y)
+import os
+
+
 def cof(X,y):
     pass_agg_conf_matrix = metrics.confusion_matrix(y, stratified_cv(X, y, linear_model.PassiveAggressiveClassifier))
     grad_ens_conf_matrix = metrics.confusion_matrix(y, stratified_cv(X, y, ensemble.GradientBoostingClassifier))
@@ -284,7 +326,6 @@ def cof(X,y):
     k_neighbors_conf_matrix = metrics.confusion_matrix(y, stratified_cv(X, y, neighbors.KNeighborsClassifier))
     logistic_reg_conf_matrix = metrics.confusion_matrix(y, stratified_cv(X, y, linear_model.LogisticRegression))
     dumb_conf_matrix = metrics.confusion_matrix(y, [0 for ii in y.tolist()]); # ignore the warning as they are all 0
-    
     conf_matrix = {
                     1: {
                         'matrix': pass_agg_conf_matrix,
@@ -330,39 +371,7 @@ def cof(X,y):
         title = values['title']
         plt.subplot(3, 3, ii) # starts from 1
         plt.title(title);
-        sns.heatmap(matrix, annot=True,  fmt='');
-        
-def gbc(X,y,columns_names):
-    gbc = ensemble.GradientBoostingClassifier()
-    gbc.fit(X, y)
-    # Get Feature Importance from the classifier
-    feature_importance = gbc.feature_importances_
-    # Normalize The Features
-    feature_importance = 100.0 * (feature_importance / feature_importance.max())
-    sorted_idx = np.argsort(feature_importance)
-    pos = np.arange(sorted_idx.shape[0]) + .5
-    plt.figure(figsize=(16, 12))
-    plt.barh(pos, feature_importance[sorted_idx], align='center', color='#7A68A6')
-    plt.yticks(pos, np.asanyarray(columns_names)[sorted_idx])
-    plt.xlabel('Relative Importance')
-    plt.title('Variable Importance')
-    plt.show()    
-
-def classification(X,label):
-    y=X[label]
-    X=X.drop(['churn','appetency','upselling',label],axis='columns')
-    clf=ExtraTreesClassifier(n_estimators=10,max_depth=None,min_samples_split=1,random_state=0)
-    clf1 = LogisticRegression()
-    clf2 = RandomForestClassifier()
-    clf3 = GaussianNB()
-    clf4 = AdaBoostClassifier(n_estimators=100)
-    clf5 = GradientBoostingClassifier(n_estimators=100, learning_rate=1.0,max_depth=1, random_state=0)
-    clf6 = DecisionTreeClassifier(max_depth=None, min_samples_split=1,random_state=0)
-    eclf = VotingClassifier(estimators=[('lr', clf1), ('rf', clf2), 
-                                        ('gnb', clf3),('ab',clf4),('gd',clf5),('dt',clf6),('ETs',clf)],
-                                         voting='soft')
-    eclf.fit(X, y)
-import os
+#        sns.heatmap(matrix, annot=True,  fmt='');
 #save_path= 
 #from tempfile import mkdtemp
 #

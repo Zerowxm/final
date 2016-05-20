@@ -1,3 +1,17 @@
+<<<<<<< HEAD
+# -*- coding: utf-8 -*-
+"""
+Created on Sat May 14 11:06:38 2016
+
+@author: zero
+"""
+
+# -*- coding: utf-8 -*-
+"""
+Created on Thu May 05 16:18:21 2016
+
+@author: Zero
+"""
 from __future__ import print_function
 __author__ = 'fnogueira, glemaitre'
 
@@ -133,3 +147,4 @@ def test_CNN(x, y):
     
 #    test_rest(X, Y)
 #    test_CNN(X, Y)
+>>>>>>> 396386efdf03d08499a7a08afacf5ff8c293746b

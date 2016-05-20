@@ -74,6 +74,9 @@ if __name__ == "__main__":
     
     
     df_rank=df.rank() # rank the columns
+   
+#    null=pd.isnull(df) 
+#    isnull=df.isnull().any()
     df_=df[df[label]==-1] # choose the label == -1
     df=df[df[label]==1]# choose the label == 1
 #    test(df_all)
@@ -378,6 +381,8 @@ if __name__ == "__main__":
     # comment start
     # get the train data
     #comment end
+#    train=pd.concat([dfd,dfd_n.sample(dfd.shape[0])])
+#    train_des=train.describe()
 #    dfd=pd.concat([dfd,classes],axis='columns')
 #    
 #    dfd_n=pd.concat([dfd_n,classes_n],axis='columns')
@@ -411,8 +416,13 @@ if __name__ == "__main__":
 #    t=dfd.loc[:,labels]    
 #    t1=dfd.drop(['churn','appetency','upselling'],axis='columns')[dfd.columns.values[bf]]
 #    train=pd.concat([t1,t],axis='columns')
+<<<<<<< HEAD
+#    u.treeClassifer(train,'upselling')
+    
+=======
     
 #    u.treeClassifer(train,'churn')
+>>>>>>> 396386efdf03d08499a7a08afacf5ff8c293746b
 #    u.classification(train,'churn')
 #    plt.matshow(train.corr())
 #    beta2 = (train.corr() * df['b'].std() * df['a'].std() / df['a'].var()).ix[0, 1]

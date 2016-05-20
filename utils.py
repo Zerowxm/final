@@ -178,10 +178,11 @@ def featureImp(X,y,forest):
 def treeClassifer(X,label):
     est = DecisionTreeClassifier()
     y=X[label]
+    columns=X.columns
     X=X.drop(['churn','appetency','upselling',label],axis='columns')
     X=preprocessing.scale(X)
-    X_train, X_test, y_train, y_test = cross_validation.train_test_split(
-     X, y, test_size=0.4, random_state=0)
+#    X_train, X_test, y_train, y_test = cross_validation.train_test_split(
+#     X, y, test_size=0.4, random_state=0)
 #    clf = clf.fit(X_train, y_train)
     est = est.fit(X, y)
     cross(est,X,y,'DT')
@@ -190,7 +191,7 @@ def treeClassifer(X,label):
 #    std = np.std([tree.feature_importances_ for tree in clf.estimators_],
 #                 axis=0)
     indices = np.argsort(importances)[::-1]
-    
+    features=columns[indices]
     # Print the feature ranking
     print("Feature ranking:")
     

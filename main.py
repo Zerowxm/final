@@ -43,8 +43,8 @@ if __name__ == "__main__":
     df=df.dropna(axis='columns',how='all')
     
     df_rank=df.rank() # rank the columns
-    df_=df[df.churn==-1] # choose the label == -1
-#    df=df[df.churn==1]# choose the label == 1
+    df_=df[df.upselling==-1] # choose the label == -1
+    df=df[df.upselling==1]# choose the label == 1
    
 #    null=pd.isnull(df) 
 #    isnull=df.isnull().any()
@@ -96,7 +96,7 @@ if __name__ == "__main__":
     # comment start
     # choose the features
     #comment end
-    flag_all=True
+    flag_all=False
     labels=['churn','appetency','upselling']
 #    fea=[83,134, 188, 162, 109,  94, 101, 155, 135 ,137,175,56,211,66]
     des_diff=np.append(des_diff,labels)
@@ -107,6 +107,7 @@ if __name__ == "__main__":
     else:
         dfd_n=df_[des_diff]
         dfd=df[des_diff]
+    import ut
     
     # comment start
     # preprocess the data
@@ -176,6 +177,7 @@ if __name__ == "__main__":
     if (category.shape[0]!=0):
         dfd_n[category]=obj_n
         dfd[category]=obj
+        
         dfd=u.inpute(dfd)
         dfd_n=u.inpute(dfd_n)
     else:
@@ -196,7 +198,7 @@ if __name__ == "__main__":
     # comment start
     # get the train data
     #comment end
-    train=pd.concat([dfd,dfd_n])
+    train=pd.concat([dfd,dfd_n.sample(dfd.shape[0])])
     train_des=train.describe()
     # comment start
     # classication
@@ -208,10 +210,11 @@ if __name__ == "__main__":
 #    print df_tmp.describe()
 #    df_tmp1=df_tmp1[df_tmp1.columns.values[bf]]
 #    print df_tmp1.describe()
-    t=dfd.loc[:,labels]    
-    t1=dfd.drop(['churn','appetency','upselling'],axis='columns')[dfd.columns.values[bf]]
-    train=pd.concat([t1,t],axis='columns')
-#    u.treeClassifer(train,'churn')
+#    t=dfd.loc[:,labels]    
+#    t1=dfd.drop(['churn','appetency','upselling'],axis='columns')[dfd.columns.values[bf]]
+#    train=pd.concat([t1,t],axis='columns')
+#    u.treeClassifer(train,'upselling')
+    
 #    u.classification(train,'churn')
 #    plt.matshow(train.corr())
 #    beta2 = (train.corr() * df['b'].std() * df['a'].std() / df['a'].var()).ix[0, 1]

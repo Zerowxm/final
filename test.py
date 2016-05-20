@@ -28,9 +28,8 @@ print('Generate samples using scikit-learn')
 #                           n_informative=3, n_redundant=1, flip_y=0,
 #                           n_features=20, n_clusters_per_class=1,
 #                           n_samples=5000, random_state=10)
-X=X_trai.copy().as_matrix()
-Y=y_trai.copy().as_matrix()
-x1,y1,x2,y2,x3,y3=0
+#X=X_trai.copy().as_matrix()
+#Y=y_trai.copy().as_matrix()
 verbose = True
 indices_support = True
 
@@ -43,16 +42,16 @@ def test_smote(x, y):
     sm = SMOTE(kind='borderline1', verbose=verbose)
     svmx, svmy = sm.fit_transform(x, y)
     
-#    print('SMOTE bordeline 2')
-#    sm = SMOTE(kind='borderline2', verbose=verbose)
-#    svmx, svmy = sm.fit_transform(x, y)
-#    print (Counter(svmy))
-#    print('SMOTE SVM')
-#    svm_args={'class_weight': 'auto'}
-#    sm = SMOTE(kind='svm', verbose=verbose, **svm_args)
-#    svmx, svmy = sm.fit_transform(x, y)
-#    print (Counter(svmy))
-
+    print('SMOTE bordeline 2')
+    sm = SMOTE(kind='borderline2', verbose=verbose)
+    svmx, svmy = sm.fit_transform(x, y)
+    print (Counter(svmy))
+    print('SMOTE SVM')
+    svm_args={'class_weight': 'auto'}
+    sm = SMOTE(kind='svm', verbose=verbose, **svm_args)
+    svmx, svmy = sm.fit_transform(x, y)
+    print (Counter(svmy))
+print (test_rest(X,Y))
 def test_rest(x, y):
 
     print('Random under-sampling')
@@ -60,7 +59,7 @@ def test_rest(x, y):
     usx, usy, idx_tmp = US.fit_transform(x, y)
     print ('Indices selected')
     print(idx_tmp)
-
+    return usx, usy, idx_tmp
     print('Tomek links')
     TL = TomekLinks(verbose=verbose)
     tlx, tly = TL.fit_transform(x, y)

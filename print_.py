@@ -32,16 +32,18 @@ if(select):
 
 oversample=False
 from sklearn.grid_search import ParameterGrid
-grid = ParameterGrid({"k": [3,4,5,6, 7],
+grid = ParameterGrid({"k": [3,4,5,6,7],
                           "ratio": [0.5,1,1.5,2] })
-columns=X_trai.columns.values    
+columns=X_trai.columns.values   
+#X_trai,y_trai=u.test_rest(X_trai.as_matrix(),y_trai.as_matrix()) 
 #y_trai=x_smote['churn']
 #X_trai=x_smote.drop('churn',axis='columns')        
 if(oversample):
-#    for params in grid:
-#        print params
-        adsn = ADASYN(imb_threshold=0.8)
+    for params in grid:
+        print params
+        adsn = ADASYN(imb_threshold=0.8,**params)
         X_trai, y_trai = adsn.fit_transform(X_trai,y_trai)  # your imbalanced dataset is in X,y
+        X_trai,y_trai=u.test_rest(X_trai,y_trai) 
         u.boostingClassifier(X_trai,y_trai,X_tes,y_tes)
         print Counter(y_trai)
 else:

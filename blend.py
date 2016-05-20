@@ -29,7 +29,8 @@ import load_data
 from sklearn.cross_validation import StratifiedKFold
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
-
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.tree import DecisionTreeClassifier
 def logloss(attempt, actual, epsilon=1.0e-15):
     """Logloss, i.e. the score of the bioresponse competition.
     """
@@ -61,6 +62,8 @@ if __name__ == '__main__':
             RandomForestClassifier(n_estimators=100, n_jobs=-1, criterion='entropy'),
             ExtraTreesClassifier(n_estimators=100, n_jobs=-1, criterion='gini'),
             ExtraTreesClassifier(n_estimators=100, n_jobs=-1, criterion='entropy'),
+            DecisionTreeClassifier(),
+            AdaBoostClassifier(n_estimators=100, base_estimator=DecisionTreeClassifier(),learning_rate=1),
             GradientBoostingClassifier( subsample=0.5, max_depth=6, n_estimators=50)]
 
     print "Creating train and test sets for blending."

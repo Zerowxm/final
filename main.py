@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import utils as u
 from sklearn import tree
 from sklearn.externals import joblib
-def loadData(file,header=0):
+def loadFile(file,header=0):
     df=pd.read_table(file,header=header)
     return df
     
@@ -27,7 +27,8 @@ def test(df):
     o= o.apply(u.convert,axis='columns')
     df[category]=o
     u.treeClassifer(df,'churn')
-if __name__ == "__main__":
+    
+def loadData():
     # comment start
     # read data
     #comment end
@@ -35,27 +36,49 @@ if __name__ == "__main__":
     appetency='orange_small_train_appetency.labels'
     churn='orange_small_train_churn.labels'
     upselling='orange_small_train_upselling.labels'
-    df=loadData(data)
-    appetency=loadData(appetency,None)
-    churn=loadData(churn,None)
-    upselling=loadData(upselling,None)
+    df=loadFile(data)
+    appetency=loadFile(appetency,None)
+    churn=loadFile(churn,None)
+    upselling=loadFile(upselling,None)
     churn.columns=['churn']
     appetency.columns=['appetency']
     upselling.columns=['upselling']
     df=pd.concat([df,churn,appetency,upselling],axis=1) # concat data and label
+    df=df.dropna(axis='columns',how='all')
+    return df
+#def handleTrain():
+    
+if __name__ == "__main__":
+    df=loadData()
+    
+    label='churn'
+    labels=['churn','appetency','upselling']
+    temp=df.drop(df.dropna(axis='columns',how='any').columns.values,axis='columns').columns.values.tolist()
+    null=pd.isnull(df[temp]).as_matrix().astype(np.int)
+    missing_count=df.notnull().sum(axis=1)
+    temp=[s + '_' for s in temp]
+    null=pd.DataFrame(null,columns=temp)
+#    df=pd.concat([df,null],axis='columns')
     # comment start
     # divide the data into two classes
     #comment end
-    df=df.dropna(axis='columns',how='all')
+    
     df_all=df.copy()
+    
+    df_all_cat=cat(df_all).describe()
+    df_all_cat=df_all_cat.transpose()
+    df_all_cat=df_all_cat[df_all_cat.unique>1]
+#    df=df[df_all_cat.index]
+    df_all_=df_all[df_all_cat.index]
     df_des=df.describe()
-    label='churn'
+    
+    
     df_rank=df.rank() # rank the columns
     df_=df[df[label]==-1] # choose the label == -1
     df=df[df[label]==1]# choose the label == 1
 #    test(df_all)
        
-    null=pd.isnull(df) 
+    
     isnull=df.isnull().any()
     
     
@@ -67,23 +90,26 @@ if __name__ == "__main__":
 #    thres=40000    
 #    num_=num[num<thres] # select data by shres
     num_per=df.notnull().sum(axis=1).sort_values(ascending=True,kind='quicksort') # every sample's  missing count
+    
     num_per_des=num_per.describe()
     num_per_n=df_.notnull().sum(axis=1).sort_values(ascending=True,kind='quicksort') # every sample's  missing count
     num_per_n_des=num_per_n.describe()
-    num_per_n=num_per_n[num_per_n<num_per.min()].index
-    min_sam=df_.loc[num_per_n]
+    df_=df_.reindex(num_per_n.index)
+#    num_per_n=num_per_n[num_per_n<num_per.min()]
+    
+    min_sam=df_.iloc[num_per_n]
     mean_f=num_per.mean() 
     minn= num_per[num_per>=num_per.mean()]
     features=np.array(num.index.tolist())
-    f=['Var126','Var29','Var130','Var201','Var90','Var192','Var138','Var113','Var74','Var13',
-   'Var189','Var205','Var73','Var211','Var199','Var212','Var217','Var2','Var218','Var81',
-   'churn','appetency','upselling']
+#    f=['Var126','Var29','Var130','Var201','Var90','Var192','Var138','Var113','Var74','Var13',
+#   'Var189','Var205','Var73','Var211','Var199','Var212','Var217','Var2','Var218','Var81',
+#   'churn','appetency','upselling']
    
     # comment start
     # reoeder the columns
     #comment end
     df=df[features] 
-    df_=df_[features]
+    df_=df_[features]                                               
     df_tmp=df.copy()
     df_tmp1=df_.copy()
 #    df=df.iloc[minn.index,:].dropna(axis='columns',how='any')
@@ -112,7 +138,7 @@ if __name__ == "__main__":
     # choose the features
     #comment end
     flag_all=True
-    labels=['churn','appetency','upselling']
+    
 #    fea=[83,134, 188, 162, 109,  94, 101, 155, 135 ,137,175,56,211,66]
     des_diff=np.append(des_diff,labels)
 #    des_diff=['Var8','Var6','Var2','Var21','Var3','Var12','Var20','Var4','Var18','churn','appetency','upselling']
@@ -148,7 +174,11 @@ if __name__ == "__main__":
             unique_inter= u.intersection_count(unique,unique_n)
             arr.append(unique_inter)
         arr=np.array(arr)
-        indices=np.where(arr>0.8)[0]
+        
+        indices=np.where(arr<0.6)[0]
+        if len(indices)!=0:
+            features_categorical=[category[i] for i in indices ] 
+        indices=np.where(arr>0.8)[0] 
         category_del=[category[i] for i in indices ] 
         category=[x for x in category if x not in category_del]
         obj=obj.drop(category_del,axis='columns')
@@ -176,19 +206,23 @@ if __name__ == "__main__":
     dfd=dfd.drop(labels,axis='columns')
     dfd_n=dfd_n.drop(labels,axis='columns')
     numerical=dfd.select_dtypes(exclude=['object'])
+    
     numerical_n=dfd_n.select_dtypes(exclude=['object'])
-    numerical_cate=cat(numerical).describe()
-    numerical_n_cate=cat(numerical_n).describe()
+    
+    numerical_cate=cat(numerical).describe().transpose()
+    numerical_n_cate=cat(numerical_n).describe().transpose()
+    numerical_cate['type']=pd.Series(numerical.dtypes)
+    numerical_n_cate['type']=pd.Series(numerical_n.dtypes)
     numerical_des=numerical.describe()
     numerical_n_des=numerical_n.describe()
-    numerical_unique=numerical.iloc[:,0].unique()
+#    numerical_unique=numerical.iloc[:,0].unique()
 #    var=u.normalize_df(numerical).var()
 #    var_n=u.normalize_df(numerical_n).var() 
-    bug=True
+    bug=False
     if(bug):
-        count=numerical_cate.loc['count']/numerical.shape[0]
+        count=numerical_cate['count']/numerical.shape[0]
         count.name='count_'
-        count_n=numerical_n_cate.loc['count']/numerical_n.shape[0]
+        count_n=numerical_n_cate['count']/numerical_n.shape[0]
         count_n.name='count_n'
         var=numerical.var()
         var.name='var'
@@ -210,22 +244,26 @@ if __name__ == "__main__":
         min_n.name='min_n'
         min_=numerical.min()
         min_.name='min'
-        temp=pd.DataFrame([count,count_n,var,var_n,std,std_n,mean,mean_n,min_,min_n,max_,max_n])
+        temp=pd.DataFrame([count,count_n,var,var_n,std,std_n,mean,mean_n,min_,min_n,max_,max_n]).transpose()
+        temp_s=u.standardize_df(temp)
+        
     # comment start
     # convert categorical to numerical
     #comment end
-    obj= obj.apply(u.convert,axis='columns')
-    obj_n= obj_n.apply(u.convert,axis='columns')
-    
+#    obj.fillna('0')
+#    obj_n.fillna('0')
+#    obj= obj.apply(u.convert_test,axis='index')
+#    obj_n= obj_n.apply(u.conver_test,axis='index')
+#    
     # comment start
     # impute the missing values
     #comment end
-    impute_=u.inpute(numerical)
-    impute_n=u.inpute(numerical_n)
-    numerical_category=numerical.columns.values.tolist()
-    
-    impute_des=impute_.describe()
-    impute_n_des=impute_n.describe()
+#    impute_=u.inpute(numerical)
+#    impute_n=u.inpute(numerical_n)
+    numerical_category=numerical.columns.values
+#    
+#    impute_des=impute_.describe()
+#    impute_n_des=impute_n.describe()
     num_des=numerical.describe()
     
     
@@ -261,10 +299,11 @@ if __name__ == "__main__":
             shape.append( df_col.shape[0])
             f1.append(u.selectF(df_col,'churn'))
             positive.append(df_col[df_col[label]==1].shape[0])
-        np.savetxt('f1_obj.txt',f1)
-        np.savetxt('shape_obj.txt',shape)
-        
-        positive=[]
+        np.savetxt('f1.txt',f1)
+        np.savetxt('shape.txt',shape)
+        np.savetxt('positive.txt',positive)
+    
+    positive=[]
     to_acc=False
     if(to_acc):
         for col in numerical_category:
@@ -273,41 +312,45 @@ if __name__ == "__main__":
             positive.append(df_col.dropna(axis='rows')[df_all[label]==1].shape[0])
         np.savetxt('positive.txt',positive)
         
-    positive=np.loadtxt('positive.txt')
-    f1=np.loadtxt('f1.txt')
-    shape=np.loadtxt('shape.txt')
-    f1_df=pd.DataFrame(f1,columns=['f1','accuracy','recall','roc_auc'])
+    if(bug):
+        positive=np.loadtxt('positive.txt')
+        f1=np.loadtxt('f1.txt')
+        shape=np.loadtxt('shape.txt')
+        f1_df=pd.DataFrame(f1,columns=['f1','accuracy','precision','recall','negative_a','positive_a'])
+        
+        f1_df['count_ratio']=pd.Series(shape)/df_all.shape[0]
+        f1_df['positive']=pd.Series(positive)
+        f1_df['positive_ratio']=pd.Series(positive).divide(shape)
+        f1_df=f1_df.transpose()
+        f1_df.columns=numerical_category
+        f1_df=f1_df.transpose()
+    #    f1_df=f1_df[f1_df.positive_a!=0]
+        f1_df_s=u.standardize_df(f1_df)
+        temp_a=pd.concat([temp,f1_df],axis='columns')
+        temp_a_s=u.standardize_df(temp_a)
+        
+        positive=np.loadtxt('positive_obj.txt')
+        f1=np.loadtxt('f1_obj.txt')
+        shape=np.loadtxt('shape_obj.txt')
+        f1_obj_df=pd.DataFrame(f1,columns=['f1','accuracy','precision','recall','negative_a','positive_a'])
+        
+        f1_obj_df['count_ratio']=pd.Series(shape)/df_all.shape[0]
+        f1_obj_df['positive_count']=pd.Series(positive)
+        f1_obj_df['positive_ratio']=pd.Series(positive).divide(shape)
+        f1_obj_df=f1_obj_df.transpose()
+        f1_obj_df.columns=category
+        f1_obj_df=f1_obj_df.transpose()
+        f1_obj_df=f1_obj_df[f1_obj_df.positive_a!=0]
+        f1_obj_df_s=u.standardize_df(f1_obj_df)
     
-    f1_df['count_ratio']=pd.Series(shape)/df_all.shape[0]
-    f1_df['positive']=pd.Series(positive)
-    f1_df['positive_ratio']=pd.Series(positive).divide(shape)
-    f1_df=f1_df.transpose()
-    f1_df.columns=numerical_category
-    f1_df_s=u.standardize_df(f1_df.transpose())
+#    f1_df_s.plot()
+#    f1_obj_df_s.plot()
+#    plt.show()
     
-    positive=np.loadtxt('positive_obj.txt')
-    f1=np.loadtxt('f1_obj.txt')
-    shape=np.loadtxt('shape_obj.txt')
-    f1_obj_df=pd.DataFrame(f1,columns=['f1','accuracy','precision','recall','negative','positive'])
-    
-    f1_obj_df['count_ratio']=pd.Series(shape)/df_all.shape[0]
-    f1_obj_df['positive']=pd.Series(positive)
-    f1_obj_df['positive_ratio']=pd.Series(positive).divide(shape)
-    f1_obj_df=f1_obj_df.transpose()
-    f1_obj_df.columns=category
-    f1_obj_df_s=u.standardize_df(f1_obj_df.transpose())
-    
-    f1_df_s.plot()
-    f1_obj_df_s.plot()
-    plt.show()
-#    obj=cat(obj)
-#    obj=obj.apply(u.inpute)
 #    dfd.fillna(method='bfill')
     
-#    print obj.isnull().sum().sum()
-    
-    dfd_des_b=dfd.describe()
-    dfd_n_des_b=dfd_n.describe()
+#    dfd_des_b=dfd.describe()
+#    dfd_n_des_b=dfd_n.describe()
     
 #    diff= list(set(obj.columns.values).intersection(
 #    set(impute_.columns.values))) 
@@ -319,11 +362,6 @@ if __name__ == "__main__":
         if (len(category)!=0):
             dfd_n[category]=obj_n
             dfd[category]=obj
-            dfd=u.inpute(dfd)
-            dfd_n=u.inpute(dfd_n)
-        else:
-            dfd=impute_
-            dfd_n=impute_n
 #    top=dfd[f]
 #    top_des=top.describe()
 #    top=u.inpute(top)
@@ -331,26 +369,27 @@ if __name__ == "__main__":
 #    dfd=u.selectFeaturesThres(dfd)    
       
     
-    dfd_des=dfd.describe()
-    dfd_n_des=dfd_n.describe()
+    if(bug):
+        dfd_des=dfd.describe()
+        dfd_n_des=dfd_n.describe()
 #    dfd_des.plot()
 #    plt.figure()
 #    dfd_n_des.plot()
     # comment start
     # get the train data
     #comment end
-    dfd=pd.concat([dfd,classes],axis='columns')
+#    dfd=pd.concat([dfd,classes],axis='columns')
+#    
+#    dfd_n=pd.concat([dfd_n,classes_n],axis='columns')
+#    train=pd.concat([dfd,dfd_n])
+#    train_features=train[category].apply(u.convert,axis='columns')
+#    
+#    train[category]=train_features
+#    
+#    category.extend(labels)
+#    train=train[category]
+#    X=train.as_matrix()
     
-    dfd_n=pd.concat([dfd_n,classes_n],axis='columns')
-    train=pd.concat([dfd,dfd_n])
-    train_features=train[category].apply(u.convert,axis='columns')
-    
-    train[category]=train_features
-    
-    category.extend(labels)
-    train=train[category]
-    X=train.as_matrix()
-    temp_=temp.append(f1_df)
 #    temp_=pd.concat([temp,f1_df],axis='rows')
 #    smote=u.SMOTE(train[train.churn==1].as_matrix(),100,3)
 #    sample_weight = np.array([5 if i == 0 else 1 for i in y])
@@ -360,7 +399,7 @@ if __name__ == "__main__":
     # classication
     #comment end
 #    u.GNBClassifier(train,'churn')
-#    u.treeClassifer(train,'churn')
+#    u.test(train,'churn')
 #    dfd=pd.concat([dfd[dfd.columns.values[fea]],dfd[labels]],axis='columns')
 #    f1=u.svmClassifer(train,'churn',sample_weight=sample_weight,cv=5)
     
@@ -403,6 +442,6 @@ if __name__ == "__main__":
 #    df=df[]
 #    plt.title('missing values')
 #    num.plot()
-        
+           
     
  

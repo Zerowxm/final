@@ -1,19 +1,4 @@
-acc_f1=False
-    if(acc_f1):
-        f1=[]
-        shape=[]
-        positive=[]
-        for col in numerical_category:
-            col_label=np.append(col,labels)
-            df_col=df_all[col_label]
-            df_col=df_col.dropna(axis='rows') 
-            shape.append( df_col.shape[0])
-            f1.append(u.selectF(df_col,'churn'))
-            positive.append(df_col[df_col[label]==1].shape[0])
-        np.savetxt('f1_obj.txt',f1)
-        np.savetxt('shape_obj.txt',shape)
-        
-        positive=[]
+positive=[]
     to_acc=False
     if(to_acc):
         for col in numerical_category:
@@ -24,23 +9,34 @@ acc_f1=False
         
     positive=np.loadtxt('positive.txt')
     f1=np.loadtxt('f1.txt')
-    f1_df=pd.DataFrame(f1,columns=['f1','accuracy','recall','roc_auc'])
     shape=np.loadtxt('shape.txt')
-#    f1_df['count']=pd.Series(shape)
+    f1_df=pd.DataFrame(f1,columns=['f1','accuracy','recall','roc_auc'])
+    
     f1_df['count_ratio']=pd.Series(shape)/df_all.shape[0]
     f1_df['positive']=pd.Series(positive)
     f1_df['positive_ratio']=pd.Series(positive).divide(shape)
     f1_df=f1_df.transpose()
     f1_df.columns=numerical_category
+    f1_df_s=u.standardize_df(f1_df.transpose())
     
-#    f1_df.transpose().plot()
+    positive=np.loadtxt('positive_obj.txt')
+    f1=np.loadtxt('f1_obj.txt')
+    shape=np.loadtxt('shape_obj.txt')
+    f1_obj_df=pd.DataFrame(f1,columns=['f1','accuracy','precision','recall','negative_a','positive_a'])
+    
+    f1_obj_df['count_ratio']=pd.Series(shape)/df_all.shape[0]
+    f1_obj_df['positive_count']=pd.Series(positive)
+    f1_obj_df['positive_ratio']=pd.Series(positive).divide(shape)
+    f1_obj_df=f1_obj_df.transpose()
+    f1_obj_df.columns=category
+    f1_obj_df=f1_obj_df.drop(f1_obj_df.positive_a==0,axis='columns')
+    f1_obj_df_s=u.standardize_df(f1_obj_df.transpose())
+    
+#    f1_df_s.plot()
+#    f1_obj_df_s.plot()
 #    plt.show()
-#    f1=np.append(f1,shape)
-#    obj=cat(obj)
-#    obj=obj.apply(u.inpute)
-#    dfd.fillna(method='bfill')
     
-#    print obj.isnull().sum().sum()
+#    dfd.fillna(method='bfill')
     
     dfd_des_b=dfd.describe()
     dfd_n_des_b=dfd_n.describe()
@@ -139,3 +135,4 @@ acc_f1=False
 #    df=df[]
 #    plt.title('missing values')
 #    num.plot()
+        

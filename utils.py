@@ -22,7 +22,7 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.ensemble import VotingClassifier
-from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.ensemble import ExtraTreesClassifier,BaggingClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn import preprocessing
 from sklearn.feature_selection import VarianceThreshold
@@ -40,6 +40,7 @@ from sklearn import svm
 from collections import Counter
 import seaborn as sns
 from sklearn.metrics import cohen_kappa_score, make_scorer
+from skll.metrics import kappa
 plt.style.use('fivethirtyeight') # Good looking plots
 pd.set_option('display.max_columns', None) # Display any number of columns
 
@@ -59,6 +60,12 @@ def auc_compute(actual,predictions):
     # may differ
     print auc(false_positive_rate, true_positive_rate)
     print roc_auc_score(actual,predictions)
+def split(X,label,test_size=0.2):
+    y=X[label]
+    X=X.drop(['churn','appetency','upselling',label],axis='columns')
+    X_train, X_test, y_train, y_test = cross_validation.train_test_split(
+     X, y, test_size=test_size, random_state=0)
+    return X_train, X_test, y_train, y_test 
 
 def GNBClassifier(X,label):
     gnb = GaussianNB()
@@ -104,12 +111,12 @@ def svmClassifer(X,label,sample_weight=None,cv=10):
         f1=cross(clf,X,y,name,cv=cv)
     return f1
 def scores(X,y,name):
-    print(name+' Classifier:\n {}'.format(metrics.classification_report(X,y)))
+#    print(name+' Classifier:\n {}'.format(metrics.classification_report(X,y)))
     cm= metrics.confusion_matrix(X,y)
     print cm
-    class2=float(cm[1,1])/float(cm[1].sum())
-    class1=float(cm[0,0])/float(cm[0].sum())
-    print class1,class2
+#    class2=float(cm[1,1])/float(cm[1].sum())
+#    class1=float(cm[0,0])/float(cm[0].sum())
+#    print class1,class2
     accuracy=metrics.accuracy_score(X,y)
     print(name+' Classifier accuracy:  %0.2f (+/- %0.2f)' % (accuracy.mean(), accuracy.std()))
     f1=metrics.f1_score(X,y)
@@ -118,12 +125,11 @@ def scores(X,y,name):
     print(name+' Classifier precision_score: %0.2f (+/- %0.2f)' % (precision.mean(), precision.std()))
     recall=metrics.recall_score(X,y)
     print(name+' Classifier recall_score: %0.2f (+/- %0.2f)' % (recall.mean(), recall.std()))
-    
-    
-    return [f1.mean(),accuracy.mean(),precision.mean(),recall.mean(),class1,class2]
+    kappa_score=kappa(X,y)
+    print(name+' Classifier kappa_score: %0.2f (+/- %0.2f)' % (kappa_score.mean(), kappa_score.std()))
+    return [f1.mean(),accuracy.mean(),precision.mean(),recall.mean()]
     
 def cross(est,X,y,name,cm=False,cv=10):
-    
     kappa_scorer = make_scorer(cohen_kappa_score)
     if(cm):
         print(metrics.classification_report(expected,predicted))  
@@ -173,12 +179,11 @@ def test(X,label, sample_weight=None,cv=10):
     y=X[label]
     X=X.drop(['churn','appetency','upselling',label],axis='columns')
     for cutoff in np.arange(0.1,0.9,0.1):
-        clf=RandomForestClassifier(n_estimators=15) 
+        clf=RandomForestClassifier(n_estimators=15,class_weight ='balanced') 
         valideted=cross_validation.cross_val_score(clf,X,y,scoring=custom_f1(cutoff))
         print(" f1: %0.2f (+/- %0.2f)" % (valideted.mean(), valideted.std()))
         scores.append(valideted)
 def selectF(X,label):
-    est = DecisionTreeClassifier(min_samples_split=1)
     y=X[label]
     X=X.drop(['churn','appetency','upselling',label],axis='columns')
     is_poly=True
@@ -193,11 +198,11 @@ def selectF(X,label):
     y=y.as_matrix().astype(np.int)
     f1=scores(y,stratified_cv(X, y, DecisionTreeClassifier),'DT')
     return f1
-def treeClassifer(X,label, sample_weight=None,cv=10):
+def treeClassifer(X,label, sample_weight=None,cv=1):
     est = DecisionTreeClassifier(min_samples_split=1)
     y=X[label]
-    X=X.drop(['churn','appetency','upselling',label],axis='columns')
-    is_poly=True
+    X=X.drop([label],axis='columns')
+    is_poly=False
     if(is_poly):
         X = X.as_matrix().astype(np.float)
         polynomial_features = preprocessing.PolynomialFeatures()
@@ -206,12 +211,55 @@ def treeClassifer(X,label, sample_weight=None,cv=10):
         X=X.as_matrix().astype(np.float)
         scaler = preprocessing.StandardScaler()
         X = scaler.fit_transform(X)
-#    est = est.fit(X, y,sample_weight=sample_weight)
-    f1=cross(est,X,y,'DT',cv=cv)
+    est = est.fit(X, y,sample_weight=sample_weight)
+#    f1=cross(est,X,y,'DT',cv=cv)
     y=y.as_matrix().astype(np.int)
-#    scores(y,stratified_cv(X, y, DecisionTreeClassifier),'DT')
+    f1=scores(y,stratified_cv(X, y, DecisionTreeClassifier,n_folds=5),'DT')
     
     return f1
+from sklearn.grid_search import ParameterGrid 
+from sklearn.utils.testing import assert_true
+from sklearn import linear_model  
+from sklearn.ensemble import RandomTreesEmbedding
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.cross_validation import train_test_split
+from sklearn.pipeline import make_pipeline 
+
+def boostingClassifier(X_train,y_train,X_test,y_test):
+    dt = DecisionTreeClassifier() 
+#    rf=RandomForestClassifier()
+    to_standard=False
+    if(to_standard):
+        X_train=X_train.as_matrix().astype(np.float)
+        scaler = preprocessing.StandardScaler()
+        X_train = scaler.fit_transform(X_train)
+    if(to_standard):
+        X_test=X_test.as_matrix().astype(np.float)
+        X_test = scaler.transform(X_test)
+    scores(y_test,dt.fit(X_train,y_train).predict(X_test),'DT')
+#    scores(y_test,rf.fit(X_train,y_train).predict(X_test),'RF')
+    ensemble = AdaBoostClassifier(n_estimators=100, base_estimator=dt,learning_rate=1)
+    #Above I have used decision tree as a base estimator, you can use any ML learner as base estimator if it ac# cepts sample weight 
+    scores(y_test,ensemble.fit(X_train,y_train).predict(X_test),'AdaBoosting')
+#    ensemble=GradientBoostingClassifier()
+#    scores(y_test,ensemble.fit(X_train,y_train).predict(X_test),'GDBoosting')
+    
+def baggingClassifer(X_train,y_train,X_test,y_test):
+    ensemble = BaggingClassifier(DecisionTreeClassifier(min_samples_split=1),bootstrap =False,n_estimators =50,max_samples=1,max_features=1)
+    scores(y_test,ensemble.fit(X_train,y_train).predict(X_test),'Bagging')  
+#    assert_true(isinstance(ensemble.base_estimator_, DecisionTreeClassifier))
+def treeClassiferPredict(X_train,y_train,X_test,y_test ,sample_weight=None,cv=1):
+    est = DecisionTreeClassifier(min_samples_split=1)
+    to_standard=False
+    if(to_standard):
+        X_train=X_train.as_matrix().astype(np.float)
+        scaler = preprocessing.StandardScaler()
+        X_train = scaler.fit_transform(X_train)
+    if(to_standard):
+        X_test=X_test.as_matrix().astype(np.float)
+        X_test = scaler.transform(X_test)
+    est = est.fit(X_train, y_train,sample_weight=sample_weight)
+    scores(y_test,est.predict(X_test),'DT')    
       
 def predict(X,label,est,name):
     y=X[label]
@@ -314,12 +362,24 @@ def classification(X,label):
                                         ('gnb', clf3),('ab',clf4),('gd',clf5),('dt',clf6),('ETs',clf)],
                                          voting='soft')
     eclf.fit(X, y)
-    
-def convert(x):
+import os
+#save_path= 
+#from tempfile import mkdtemp
+#
+#le = preprocessing.LabelEncoder()
+#joblib.dump(le,file1)
+def convert_train(x):
      le = preprocessing.LabelEncoder()
      new_x=le.fit_transform(x)
+     print x.name
+     filename =os.path.join('test','%sle.pkl'%x.name)
+     joblib.dump(le,filename)
      return new_x
-     
+def convert_test(x):
+     filename =os.path.join('test','%sle.pkl'%x.name)
+     le = joblib.load(filename)
+     new_x=le.transform(x)
+     return new_x     
 def inpute(X):
     c=X.columns
     imp = Imputer(missing_values='NaN', strategy='mean', axis=0)
@@ -480,7 +540,17 @@ def report(grid_scores, n_top=3):
               np.std(score.cv_validation_scores)))
         print("Parameters: {0}".format(score.parameters))
         print("")
-
+#x_smote=X_trai.copy()
+#x_smote['churn']=y_trai
+#x_p=x_smote[x_smote.churn==1]
+#
+#
+#x_smote=pd.concat([x_smote,ddd])
+#for i in range(5):
+#    ddd= SMOTE(x_p.as_matrix(),99,5)
+#    ddd=pd.DataFrame(ddd,columns=x_smote.columns)
+#    x_smote=pd.concat([x_smote,ddd])
+#print Counter(y_trai)
 def SMOTE(T, N, k):
     """
     Returns (N/100) * n_minority_samples synthetic minority samples.

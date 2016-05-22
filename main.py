@@ -8,8 +8,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import utils as u
-from sklearn import tree
-from sklearn.externals import joblib
 def loadFile(file,header=0):
     df=pd.read_table(file,header=header)
     return df
@@ -315,7 +313,7 @@ if __name__ == "__main__":
             positive.append(df_col.dropna(axis='rows')[df_all[label]==1].shape[0])
         np.savetxt('positive.txt',positive)
         
-    if(bug):
+    if(False):
         positive=np.loadtxt('positive.txt')
         f1=np.loadtxt('f1.txt')
         shape=np.loadtxt('shape.txt')
@@ -416,13 +414,8 @@ if __name__ == "__main__":
 #    t=dfd.loc[:,labels]    
 #    t1=dfd.drop(['churn','appetency','upselling'],axis='columns')[dfd.columns.values[bf]]
 #    train=pd.concat([t1,t],axis='columns')
-<<<<<<< HEAD
-#    u.treeClassifer(train,'upselling')
-    
-=======
     
 #    u.treeClassifer(train,'churn')
->>>>>>> 396386efdf03d08499a7a08afacf5ff8c293746b
 #    u.classification(train,'churn')
 #    plt.matshow(train.corr())
 #    beta2 = (train.corr() * df['b'].std() * df['a'].std() / df['a'].var()).ix[0, 1]

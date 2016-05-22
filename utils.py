@@ -59,7 +59,7 @@ def auc_compute(actual,predictions):
     # may differ
     print auc(false_positive_rate, true_positive_rate)
     print roc_auc_score(actual,predictions)
-def split(X,label,test_size=0.2):
+def split(X,label,test_size=0.1):
     y=X[label]
     X=X.drop(['churn','appetency','upselling',label],axis='columns')
     X_train, X_test, y_train, y_test = cross_validation.train_test_split(
@@ -91,24 +91,7 @@ def randScore(est,labels_true):
           % metrics.adjusted_rand_score(labels_true, labels))
 
 from sklearn.feature_selection import RFE
-def svmClassifer(X,label,sample_weight=None,cv=10):
-    clfs={'NuSVC':svm.NuSVC(class_weight='balanced'),
-          'LinearSVC':svm.LinearSVC()}
-    y=X[label]
-    X=X.drop(['churn','appetency','upselling',label],axis='columns')
-    # Create the RFE object and rank each pixel
-    svc = svm.SVC(kernel="linear", C=1)
-    rfe = RFE(estimator=svc, n_features_to_select=1, step=1)
-    rfe.fit(X, y)
-#    ranking = rfe.ranking_.reshape(digits.images[0].shape)
-    # Plot pixel ranking
-#    plt.matshow(ranking)
-#    plt.colorbar()
-#    plt.title("Ranking of pixels with RFE")
-#    plt.show()
-    for name, clf in clfs.items():
-        f1=cross(clf,X,y,name,cv=cv)
-    return f1
+
 def scores(X,y,name):
 #    print(name+' Classifier:\n {}'.format(metrics.classification_report(X,y)))
     cm= metrics.confusion_matrix(X,y)
@@ -116,6 +99,8 @@ def scores(X,y,name):
 #    class2=float(cm[1,1])/float(cm[1].sum())
 #    class1=float(cm[0,0])/float(cm[0].sum())
 #    print class1,class2
+    auc=roc_auc_score(X,y)
+    print(name+' Classifier auc:  %0.2f (+/- %0.2f)' % (auc.mean(), auc.std()))
     accuracy=metrics.accuracy_score(X,y)
     print(name+' Classifier accuracy:  %0.2f (+/- %0.2f)' % (accuracy.mean(), accuracy.std()))
     f1=metrics.f1_score(X,y)
@@ -126,7 +111,7 @@ def scores(X,y,name):
     print(name+' Classifier recall_score: %0.2f (+/- %0.2f)' % (recall.mean(), recall.std()))
     kappa_score=kappa(X,y)
     print(name+' Classifier kappa_score: %0.2f (+/- %0.2f)' % (kappa_score.mean(), kappa_score.std()))
-    return [f1.mean(),accuracy.mean(),precision.mean(),recall.mean()]
+    return [auc,f1.mean(),accuracy.mean(),precision.mean(),recall.mean(),kappa_score]
     
 def cross(est,X,y,name,cm=False,cv=10):
     kappa_scorer = make_scorer(cohen_kappa_score)
@@ -172,7 +157,7 @@ def ploy_standard_scale(df):
     polynomial_features = preprocessing.PolynomialFeatures()
     X = polynomial_features.fit_transform(X)
     return X
-    
+   
 def test(X,label, sample_weight=None,cv=10):
     scores=[]
     y=X[label]
@@ -224,6 +209,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.cross_validation import train_test_split
 from sklearn.pipeline import make_pipeline 
 
+        
 def boostingClassifier(X_train,y_train,X_test,y_test):
     dt = DecisionTreeClassifier() 
 #    rf=RandomForestClassifier()
@@ -235,14 +221,16 @@ def boostingClassifier(X_train,y_train,X_test,y_test):
     if(to_standard):
         X_test=X_test.as_matrix().astype(np.float)
         X_test = scaler.transform(X_test)
-    scores(y_test,dt.fit(X_train,y_train).predict(X_test),'DT')
+    
+    return scores(y_test,dt.fit(X_train,y_train).predict(X_test),'DT')
 #    scores(y_test,rf.fit(X_train,y_train).predict(X_test),'RF')
 #    ensemble = AdaBoostClassifier(n_estimators=100, base_estimator=dt,learning_rate=1)
     #Above I have used decision tree as a base estimator, you can use any ML learner as base estimator if it ac# cepts sample weight 
 #    scores(y_test,ensemble.fit(X_train,y_train).predict(X_test),'AdaBoosting')
 #    ensemble=GradientBoostingClassifier()
 #    scores(y_test,ensemble.fit(X_train,y_train).predict(X_test),'GDBoosting')
-    
+#stacking_train_dataset,stacking_test_dataset  
+  
 def baggingClassifer(X_train,y_train,X_test,y_test):
     ensemble = BaggingClassifier(DecisionTreeClassifier(min_samples_split=1),bootstrap =False,n_estimators =50,max_samples=1,max_features=1)
     scores(y_test,ensemble.fit(X_train,y_train).predict(X_test),'Bagging')  
@@ -272,7 +260,7 @@ def predict(X,label,est,name):
     print(metrics.confusion_matrix(expected,predicted))
     f1=cross(est,X,y,name)
     return f1
-from sklearn import linear_model,neighbors,ensemble
+from sklearn import linear_model,neighbors
 
     
 def gbc(X,y,columns_names):
@@ -289,19 +277,42 @@ def gbc(X,y,columns_names):
     plt.yticks(pos, np.asanyarray(columns_names)[sorted_idx])
     plt.xlabel('Relative Importance')
     plt.title('Variable Importance')
-    plt.show()    
+    plt.show() 
+def svmClassifer(X_train,y_train,X_test,y_test):
+    neigh = KNeighborsClassifier(n_neighbors=3)
+    gnb = GaussianNB()
+    clf=RandomForestClassifier(n_estimators=15,class_weight ='balanced') 
+    scores(y_test,clf.fit(X_train,y_train).predict(X_test),'DT')
+    scores(y_test,gnb.fit(X_train,y_train).predict(X_test),'DT')
+    scores(y_test,neigh.fit(X_train,y_train).predict(X_test),'DT') 
+    gbc = GradientBoostingClassifier()
+    scores(y_test,gbc.fit(X_train,y_train).predict(X_test),'DT') 
+    ensemble = BaggingClassifier(DecisionTreeClassifier(min_samples_split=1),bootstrap =False,n_estimators =50,max_samples=1,max_features=1)
+    scores(y_test,ensemble.fit(X_train,y_train).predict(X_test),'Bagging') 
+    clf=ExtraTreesClassifier(n_estimators=10,max_depth=None,min_samples_split=1,random_state=0)
+    clf1 = LogisticRegression()
+    scores(y_test,clf1.fit(X_train,y_train).predict(X_test),'DT') 
+    clf2 = RandomForestClassifier()
+    clf3 = GaussianNB()
+    clf4 = AdaBoostClassifier(n_estimators=100)
+    clf5 = GradientBoostingClassifier(n_estimators=100, learning_rate=1.0,max_depth=1, random_state=0)
+    clf6 = DecisionTreeClassifier(max_depth=None, min_samples_split=1,random_state=0)
+    eclf = VotingClassifier(estimators=[('lr', clf1), ('rf', clf2), 
+                                        ('gnb', clf3),('ab',clf4),('gd',clf5),('dt',clf6),('ETs',clf)],
+                                         voting='soft')
+    scores(y_test,eclf.fit(X_train,y_train).predict(X_test),'eclf') 
+#svmClassifer(stacking_train_dataset,y_trai,stacking_test_dataset,y_test) 
 def stackingClassifier(X_train,y_train,X_test,y_test ):
-    base_algorithms =[ensemble.GradientBoostingClassifier(),RandomForestClassifier(),
-                      AdaBoostClassifier(n_estimators=100)]    
-    stacking_train_dataset = np.zeros(len(y_train), len(base_algorithms))
-    stacking_test_dataset = np.zeros(len(y_test), len(base_algorithms))
+    base_algorithms =[RandomForestClassifier(),
+                      ExtraTreesClassifier(),
+                      AdaBoostClassifier(n_estimators=100),DecisionTreeClassifier()]    
+    stacking_train_dataset = np.zeros((y_train.shape[0], len(base_algorithms)))
+    stacking_test_dataset = np.zeros((y_test.shape[0], len(base_algorithms)))
     for i,base_algorithm in enumerate(base_algorithms):
         stacking_train_dataset[:,i] = base_algorithm.fit(X_train, y_train).predict(X_train)
         stacking_test_dataset[:,i] = base_algorithm.predict(X_test)
-                
-def classification(X,label):
-    y=X[label]
-    X=X.drop(['churn','appetency','upselling',label],axis='columns')
+    return stacking_train_dataset      ,stacking_test_dataset     
+def classification(X_train,y_train,X_test,y_test ):
     clf=ExtraTreesClassifier(n_estimators=10,max_depth=None,min_samples_split=1,random_state=0)
     clf1 = LogisticRegression()
     clf2 = RandomForestClassifier()
@@ -729,62 +740,63 @@ def test_smote(x, y):
     print (Counter(svmy))
     return svmx,svmy
 
-def test_rest(x, y):
-
-    print('Random under-sampling')
-    US = UnderSampler(indices_support=indices_support, verbose=verbose)
-    usx, usy, idx_tmp = US.fit_transform(x, y)
-    print ('Indices selected')
-    print(idx_tmp)
-    return usx, usy
-    print('Tomek links')
-    TL = TomekLinks(verbose=verbose)
-    tlx, tly = TL.fit_transform(x, y)
-
-    print('Clustering centroids')
-    CC = ClusterCentroids(verbose=verbose)
-    ccx, ccy = CC.fit_transform(x, y)
-
-    print('NearMiss-1')
-    NM1 = NearMiss(version=1, indices_support=indices_support, verbose=verbose)
-    nm1x, nm1y, idx_tmp = NM1.fit_transform(x, y)
-    print ('Indices selected')
-    print(idx_tmp)
-
-    print('NearMiss-2')
-    NM2 = NearMiss(version=2, indices_support=indices_support, verbose=verbose)
-    nm2x, nm2y, idx_tmp = NM2.fit_transform(x, y)
-    print ('Indices selected')
-    print(idx_tmp)
-
-    print('NearMiss-3')
-    NM3 = NearMiss(version=3, indices_support=indices_support, verbose=verbose)
-    nm3x, nm3y, idx_tmp = NM3.fit_transform(x, y)
-    print ('Indices selected')
-    print(idx_tmp)
-
-    print('Neighboorhood Cleaning Rule')
-    NCR = NeighbourhoodCleaningRule(indices_support=indices_support, verbose=verbose)
-    ncrx, ncry, idx_tmp = NCR.fit_transform(x, y)
-    print ('Indices selected')
-    print(idx_tmp)
-
-    print('Random over-sampling')
-    OS = OverSampler(verbose=verbose)
-    ox, oy = OS.fit_transform(x, y)
-
-    print('SMOTE Tomek links')
-    STK = SMOTETomek(verbose=verbose)
-    stkx, stky = STK.fit_transform(x, y)
-
-    print('SMOTE ENN')
-    SENN = SMOTEENN(verbose=verbose)
-    sennx, senny = SENN.fit_transform(x, y)
-
-    print('EasyEnsemble')
-    EE = EasyEnsemble(verbose=verbose)
-    eex, eey = EE.fit_transform(x, y)
-
+def test_rest(x, y,c):
+    c=c
+    if(c==0):
+        print('Random under-sampling')
+        US = UnderSampler(indices_support=indices_support, verbose=verbose)
+        x, y, idx_tmp = US.fit_transform(x, y)
+        print ('Indices selected')
+        print(idx_tmp)
+    elif(c==1):
+        print('Tomek links')
+        TL = TomekLinks(verbose=verbose)
+        x, y = TL.fit_transform(x, y)
+    elif(c==2):
+        print('Clustering centroids')
+        CC = ClusterCentroids(verbose=verbose)
+        x, y = CC.fit_transform(x, y)
+    elif(c==3):
+        print('NearMiss-1')
+        NM1 = NearMiss(version=1, indices_support=indices_support, verbose=verbose)
+        x, y, idx_tmp = NM1.fit_transform(x, y)
+        print ('Indices selected')
+        print(idx_tmp)
+    elif(c==4):
+        print('NearMiss-2')
+        NM2 = NearMiss(version=2, indices_support=indices_support, verbose=verbose)
+        x, y, idx_tmp = NM2.fit_transform(x, y)
+        print ('Indices selected')
+        print(idx_tmp)
+    elif(c==5):
+        print('NearMiss-3')
+        NM3 = NearMiss(version=3, indices_support=indices_support, verbose=verbose)
+        x, y, idx_tmp = NM3.fit_transform(x, y)
+        print ('Indices selected')
+        print(idx_tmp)
+    elif(c==6):
+        print('Neighboorhood Cleaning Rule')
+        NCR = NeighbourhoodCleaningRule(indices_support=indices_support, verbose=verbose)
+        x, y, idx_tmp = NCR.fit_transform(x, y)
+        print ('Indices selected')
+        print(idx_tmp)
+    elif(c==7):
+        print('Random over-sampling')
+        OS = OverSampler(verbose=verbose)
+        x, y = OS.fit_transform(x, y)
+    elif(c==8):
+        print('SMOTE Tomek links')
+        STK = SMOTETomek(verbose=verbose)
+        x, y = STK.fit_transform(x, y)
+    elif(c==9):
+        print('SMOTE ENN')
+        SENN = SMOTEENN(verbose=verbose)
+        x, y = SENN.fit_transform(x, y)
+    else:
+        print('EasyEnsemble')
+        EE = EasyEnsemble(verbose=verbose)
+        x, y = EE.fit_transform(x, y)
+    return x, y
 
 def test_CNN(x, y):
     print('Condensed Nearest Neighbour')
@@ -802,3 +814,174 @@ def test_CNN(x, y):
     print('BalanceCascade')
     BS = BalanceCascade(verbose=verbose)
     bsx, bsy = BS.fit_transform(x, y)
+import math, random, copy
+
+def expectation_maximization(t, nbclusters=2, nbiter=3, normalize=False,
+        epsilon=0.001, monotony=False, datasetinit=True):
+    """ 
+    Each row of t is an observation, each column is a feature 
+    'nbclusters' is the number of seeds and so of clusters
+    'nbiter' is the number of iterations
+    'epsilon' is the convergence bound/criterium
+
+    Overview of the algorithm:
+    -> Draw nbclusters sets of (μ, σ, P_{#cluster}) at random (Gaussian 
+       Mixture) [P(Cluster=0) = P_0 = (1/n).∑_{obs} P(Cluster=0|obs)]
+    -> Compute P(Cluster|obs) for each obs, this is:
+    [E] P(Cluster=0|obs)^t = P(obs|Cluster=0)*P(Cluster=0)^t
+    -> Recalculate the mixture parameters with the new estimate
+    [M] * P(Cluster=0)^{t+1} = (1/n).∑_{obs} P(Cluster=0|obs)
+        * μ^{t+1}_0 = ∑_{obs} obs.P(Cluster=0|obs) / P_0
+        * σ^{t+1}_0 = ∑_{obs} P(Cluster=0|obs)(obs-μ^{t+1}_0)^2 / P_0
+    -> Compute E_t=∑_{obs} log(P(obs)^t)
+       Repeat Steps 2 and 3 until |E_t - E_{t-1}| < ε
+    """
+    def pnorm(x, m, s):
+        """ 
+        Compute the multivariate normal distribution with values vector x,
+        mean vector m, sigma (variances/covariances) matrix s
+        """
+        xmt = np.matrix(x-m).transpose()
+        for i in xrange(len(s)):
+            if s[i,i] <= sys.float_info[3]: # min float
+                s[i,i] = sys.float_info[3]
+        sinv = np.linalg.inv(s)
+        xm = np.matrix(x-m)
+        return (2.0*math.pi)**(-len(x)/2.0)*(1.0/math.sqrt(np.linalg.det(s)))\
+                *math.exp(-0.5*(xm*sinv*xmt))
+
+    def draw_params():
+            if datasetinit:
+                tmpmu = np.array([1.0*t[random.uniform(0,nbobs),:]],np.float64)
+            else:
+                tmpmu = np.array([random.uniform(min_max[f][0], min_max[f][1])\
+                        for f in xrange(nbfeatures)], np.float64)
+            return {'mu': tmpmu,\
+                    'sigma': np.matrix(np.diag(\
+                    [(min_max[f][1]-min_max[f][0])/2.0\
+                    for f in xrange(nbfeatures)])),\
+                    'proba': 1.0/nbclusters}
+
+    nbobs = t.shape[0]
+    nbfeatures = t.shape[1]
+    min_max = []
+    # find xranges for each features
+    for f in xrange(nbfeatures):
+        min_max.append((t[:,f].min(), t[:,f].max()))
+    
+    ### Normalization
+    if normalize:
+        for f in xrange(nbfeatures):
+            t[:,f] -= min_max[f][0]
+            t[:,f] /= (min_max[f][1]-min_max[f][0])
+    min_max = []
+    for f in xrange(nbfeatures):
+        min_max.append((t[:,f].min(), t[:,f].max()))
+    ### /Normalization
+
+    result = {}
+    quality = 0.0 # sum of the means of the distances to centroids
+    random.seed()
+    Pclust = np.ndarray([nbobs,nbclusters], np.float64) # P(clust|obs)
+    Px = np.ndarray([nbobs,nbclusters], np.float64) # P(obs|clust)
+    # iterate nbiter times searching for the best "quality" clustering
+    for iteration in xrange(nbiter):
+        ##############################################
+        # Step 1: draw nbclusters sets of parameters #
+        ##############################################
+        params = [draw_params() for c in xrange(nbclusters)]
+        old_log_estimate = sys.maxint         # init, not true/real
+        log_estimate = sys.maxint/2 + epsilon # init, not true/real
+        estimation_round = 0
+        # Iterate until convergence (EM is monotone) <=> < epsilon variation
+        while (abs(log_estimate - old_log_estimate) > epsilon\
+                and (not monotony or log_estimate < old_log_estimate)):
+            restart = False
+            old_log_estimate = log_estimate
+            ########################################################
+            # Step 2: compute P(Cluster|obs) for each observations #
+            ########################################################
+            for o in xrange(nbobs):
+                for c in xrange(nbclusters):
+                    # Px[o,c] = P(x|c)
+                    Px[o,c] = pnorm(t[o,:],\
+                            params[c]['mu'], params[c]['sigma'])
+            #for o in xrange(nbobs):
+            #    Px[o,:] /= math.fsum(Px[o,:])
+            for o in xrange(nbobs):
+                for c in xrange(nbclusters):
+                    # Pclust[o,c] = P(c|x)
+                    Pclust[o,c] = Px[o,c]*params[c]['proba']
+            #    assert math.fsum(Px[o,:]) >= 0.99 and\
+            #            math.fsum(Px[o,:]) <= 1.01
+            for o in xrange(nbobs):
+                tmpSum = 0.0
+                for c in xrange(nbclusters):
+                    tmpSum += params[c]['proba']*Px[o,c]
+                Pclust[o,:] /= tmpSum
+                #assert math.fsum(Pclust[:,c]) >= 0.99 and\
+                #        math.fsum(Pclust[:,c]) <= 1.01
+            ###########################################################
+            # Step 3: update the parameters (sets {mu, sigma, proba}) #
+            ###########################################################
+            print "iter:", iteration, " estimation#:", estimation_round,\
+                    " params:", params
+            for c in xrange(nbclusters):
+                tmpSum = math.fsum(Pclust[:,c])
+                params[c]['proba'] = tmpSum/nbobs
+                if params[c]['proba'] <= 1.0/nbobs:           # restart if all
+                    restart = True                             # converges to
+                    print "Restarting, p:",params[c]['proba'] # one cluster
+                    break
+                m = np.zeros(nbfeatures, np.float64)
+                for o in xrange(nbobs):
+                    m += t[o,:]*Pclust[o,c]
+                params[c]['mu'] = m/tmpSum
+                s = np.matrix(np.diag(np.zeros(nbfeatures, np.float64)))
+                for o in xrange(nbobs):
+                    s += Pclust[o,c]*(np.matrix(t[o,:]-params[c]['mu']).transpose()*\
+                            np.matrix(t[o,:]-params[c]['mu']))
+                    #print ">>>> ", t[o,:]-params[c]['mu']
+                    #diag = Pclust[o,c]*((t[o,:]-params[c]['mu'])*\
+                    #        (t[o,:]-params[c]['mu']).transpose())
+                    #print ">>> ", diag
+                    #for i in xrange(len(s)) :
+                    #    s[i,i] += diag[i]
+                params[c]['sigma'] = s/tmpSum
+                print "------------------"
+                print params[c]['sigma']
+
+            ### Test bound conditions and restart consequently if needed
+            if not restart:
+                restart = True
+                for c in xrange(1,nbclusters):
+                    if not np.allclose(params[c]['mu'], params[c-1]['mu'])\
+                    or not np.allclose(params[c]['sigma'], params[c-1]['sigma']):
+                        restart = False
+                        break
+            if restart:                # restart if all converges to only
+                old_log_estimate = sys.maxint          # init, not true/real
+                log_estimate = sys.maxint/2 + epsilon # init, not true/real
+                params = [draw_params() for c in xrange(nbclusters)]
+                continue
+            ### /Test bound conditions and restart
+
+            ####################################
+            # Step 4: compute the log estimate #
+            ####################################
+            log_estimate = math.fsum([math.log(math.fsum(\
+                    [Px[o,c]*params[c]['proba'] for c in xrange(nbclusters)]))\
+                    for o in xrange(nbobs)])
+            print "(EM) old and new log estimate: ",\
+                    old_log_estimate, log_estimate
+            estimation_round += 1
+
+        # Pick/save the best clustering as the final result
+        quality = -log_estimate
+        if not quality in result or quality > result['quality']:
+            result['quality'] = quality
+            result['params'] = copy.deepcopy(params)
+            result['clusters'] = [[o for o in xrange(nbobs)\
+                    if Px[o,c] == max(Px[o,:])]\
+                    for c in xrange(nbclusters)]
+    return result

@@ -86,7 +86,6 @@ if __name__ == '__main__':
             dataset_blend_test_j[:, i] = clf.predict_proba(X_submission)[:,1]
         dataset_blend_test[:,j] = dataset_blend_test_j.mean(1)
 
-    print
     print "Blending."
     clf = LogisticRegression()
     clf.fit(dataset_blend_train, y)

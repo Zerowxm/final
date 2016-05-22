@@ -59,13 +59,13 @@ if __name__ == "__main__":
     df=loadData()
     labels=['churn','appetency','upselling']
     label='churn'
-    temp=df.drop(df.dropna(axis='columns',how='any').columns.values,axis='columns').columns.values.tolist()
-    null=pd.isnull(df[temp]).as_matrix().astype(np.int)
-    missing_count=df.notnull().sum(axis=1)
-    temp=[s + '_' for s in temp]
-    null=pd.DataFrame(null,columns=temp)
-    df=pd.concat([df,null],axis='columns')
-    df['missing_count']=missing_count
+#    temp=df.drop(df.dropna(axis='columns',how='any').columns.values,axis='columns').columns.values.tolist()
+#    null=pd.isnull(df[temp]).as_matrix().astype(np.int)
+#    missing_count=df.notnull().sum(axis=1)
+#    temp=[s + '_' for s in temp]
+#    null=pd.DataFrame(null,columns=temp)
+#    df=pd.concat([df,null],axis='columns')
+#    df['missing_count']=missing_count
     # comment start
     # divide the data into two classes
     #comment end
@@ -86,6 +86,10 @@ if __name__ == "__main__":
     features=df_all.drop(labels,axis='columns').columns
     df_=df[df[label]==-1] # choose the label == -1
     df=df[df[label]==1]# choose the label == 1
+    df_cat=cat(df).describe()
+    df_cat=df_cat.transpose()
+    df_n_cat=cat(df_).describe()
+    df_n_cat=df_n_cat.transpose()
 #    test(df_all)
        
     # comment start
@@ -93,9 +97,9 @@ if __name__ == "__main__":
     #comment end
     num=df.isnull().sum().sort_values(ascending=True,kind='quicksort') # sort the columns by the missing values' count
     num_n=df_.isnull().sum().sort_values(ascending=True,kind='quicksort')
-    num_per=df.notnull().sum(axis=1).sort_values(ascending=True,kind='quicksort') # every sample's  missing count
+    num_per=df.isnull().sum(axis=1).sort_values(ascending=True,kind='quicksort') # every sample's  missing count
     num_per_des=num_per.describe()
-    num_per_n=df_.notnull().sum(axis=1).sort_values(ascending=True,kind='quicksort') # every sample's  missing count
+    num_per_n=df_.isnull().sum(axis=1).sort_values(ascending=True,kind='quicksort') # every sample's  missing count
     num_per_n_des=num_per_n.describe()
     df_=df_.reindex(num_per_n.index)
 #    num_per_n=num_per_n[num_per_n<num_per.min()]
@@ -110,11 +114,19 @@ if __name__ == "__main__":
     obj_all=df_all.select_dtypes(include=['object'])
     obj=dfd.select_dtypes(include=['object'])
     obj_n=dfd_n.select_dtypes(include=['object'])
+    df_obj_cat=cat(obj).describe()
+    df_obj_cat=df_obj_cat.transpose()
+    
+    df_obj_n_cat=cat(obj_n).describe()
+    df_obj_n_cat=df_obj_n_cat.transpose()
+    
+    df_all_obj_cat=cat(obj_all).describe()
+    df_all_obj_cat=df_all_obj_cat.transpose()
     category=obj.columns.values.tolist()  # string features' names
-    obj_all=obj_all.fillna('0')
-    obj_fill=obj_all.apply(u.convert_test,axis='index')
+#    obj_all=obj_all.fillna('0')
+#    obj_fill=obj_all.apply(u.convert_test,axis='index')
     numerical_all=df_all.drop(labels,axis='columns').select_dtypes(exclude=['object'])
-    df_all[category]=obj_fill
+#    df_all[category]=obj_fill
         
     dfd=dfd.drop(labels,axis='columns')
     dfd_n=dfd_n.drop(labels,axis='columns')
@@ -125,7 +137,7 @@ if __name__ == "__main__":
     mean=numerical_all.mean()
     median=numerical_all.median()
     numerical_fill=numerical_all.fillna(mean,axis='rows')
-    df_all[numerical_category]=numerical_fill
+#    df_all[numerical_category]=numerical_fill
     
     is_selected=True
     if(is_selected):

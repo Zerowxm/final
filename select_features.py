@@ -59,12 +59,12 @@ if __name__ == "__main__":
     df=loadData()
     labels=['churn','appetency','upselling']
     label='churn'
-#    temp=df.drop(df.dropna(axis='columns',how='any').columns.values,axis='columns').columns.values.tolist()
-#    null=pd.isnull(df[temp]).as_matrix().astype(np.int)
-#    missing_count=df.notnull().sum(axis=1)
-#    temp=[s + '_' for s in temp]
-#    null=pd.DataFrame(null,columns=temp)
-#    df=pd.concat([df,null],axis='columns')
+    temp=df.drop(df.dropna(axis='columns',how='any').columns.values,axis='columns').columns.values.tolist()
+    null=pd.isnull(df[temp]).as_matrix().astype(np.int)
+    missing_count=df.notnull().sum(axis=1)
+    temp=[s + '_' for s in temp]
+    null=pd.DataFrame(null,columns=temp)
+    df=pd.concat([df,null],axis='columns')
 #    df['missing_count']=missing_count
     # comment start
     # divide the data into two classes

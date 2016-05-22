@@ -40,17 +40,18 @@ columns=X_trai.columns.values
 #y_trai=x_smote['churn']
 #X_trai=x_smote.drop('churn',axis='columns')        
 if(oversample):
-    scores=[]
-    for params in grid:
-        print params
-        adsn = ADASYN(imb_threshold=0.8,**params)
+#    scores=[]
+#    for params in grid:
+#        print params
+        adsn = ADASYN(imb_threshold=0.8,ratio=4)
         X_trai, y_trai = adsn.fit_transform(X_trai,y_trai)  # your imbalanced dataset is in X,y
-        X_trai,y_trai=u.test_rest(X_trai,y_trai) 
-        scores.append(u.boostingClassifier(X_trai,y_trai,X_tes,y_tes))
-        scroes=pd.DataFrame(scores,columns=['auc','f1','accuracy','precision','recall','kappa'])
-        print Counter(y_trai)
+#        X_trai,y_trai=u.test_rest(X_trai,y_trai) 
+        u.boostingClassifier(X_trai,y_trai,X_tes,y_tes)
+#        scores.append(u.boostingClassifier(X_trai,y_trai,X_tes,y_tes))
+#        scroes=pd.DataFrame(scores,columns=['auc','f1','accuracy','precision','recall','kappa'])
+#        print Counter(y_trai)
 else:
-    X_trai,y_trai=u.test_rest(X_trai.as_matrix(),y_trai.as_matrix(),2) 
+#    X_trai,y_trai=u.test_rest(X_trai.as_matrix(),y_trai.as_matrix(),2) 
     u.boostingClassifier(X_trai,y_trai,X_tes,y_tes)
 print Counter(y_trai)
 #u.treeClassifer(new,'churn')

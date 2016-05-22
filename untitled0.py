@@ -14,17 +14,72 @@ pd.set_option('display.max_columns', None) # Display any number of columns
 #bins = np.linspace(df.Var1.min(), df.Var1.max(), 10)
 #groups = pd.cut(df.Var1, bins)
 #print groups
-df_all_cat['ratio']=df_all_cat['freq']/df_all_cat['count']
-#df_all_=df_all_cat[df_all_cat.ratio>0.5]
+def handle_missing(df_all,label):
+    labels=['churn','appetency','upselling']
+    df_fill=df_all.copy()
+    df_all_cat=u.to_category(df_all).describe()
+    df_all_cat=df_all_cat.transpose()
+    df_all_cat=df_all_cat[df_all_cat.unique>1]
+    df_all=df_all[df_all_cat.index]
+    df_=df_all[df_all[label]==-1] # choose the label == -1
+    df=df_all[df_all[label]==1]# choose the label == 1
+    
+    category=df_all.select_dtypes(include=['object']).columns.values.tolist()  
+    
+    df_cat=u.to_category(df).describe()
+    df_cat=df_cat.transpose()
+    df_n_cat=u.to_category(df_).describe()
+    df_n_cat=df_n_cat.transpose()
+    
+    
+    df_all_cat['freq_ratio']=df_all_cat['freq']/df_all_cat['count']
+    df_all_cat['unique_ratio']=df_all_cat['unique']/df_all_cat['count']
+    features_fill_freq=df_all_cat[df_all_cat.freq_ratio>=0.5].drop(labels,axis='rows').index.values.tolist()
+    features_fill_median=df_all_cat.drop(category,axis='rows')[(df_all_cat.freq_ratio<0.5) & (df_all_cat.unique_ratio>=0.5)].index.values.tolist()
+    features_fill_mean=df_all_cat.drop(category,axis='rows')[(df_all_cat.freq_ratio<0.5) & (df_all_cat.unique_ratio<0.5)].index.values.tolist()
+    median= df_all[features_fill_median].median()
+    mean= df_all[features_fill_mean].mean()
+    mean_= df[features_fill_mean].mean()
+    mean_n= df_[features_fill_mean].mean()
+    mean=(mean_+mean_n)/2
+    #mean_=pd.DataFrame([mean,mean_,mean_n]).transpose().mean(axis='columns')
+    freq=df_all_cat[df_all_cat.freq_ratio>=0.5].drop(labels,axis='rows')['top']
+    df_fill[features_fill_freq]=df_all[features_fill_freq].fillna(freq)
+    df_fill[features_fill_median]=df_all[features_fill_median].fillna(median)
+    df_fill[features_fill_mean]=df_all[features_fill_mean].fillna(mean)
+    df_fill=df_fill.fillna('0')
+    return df_fill
+df_fill=handle_missing(df_all,label)
+X_train, X_test, y_train, y_test=u.split(df_fill,'churn')
+#df_fill=df_all.copy()
+#df_all_cat['freq_ratio']=df_all_cat['freq']/df_all_cat['count']
+#df_all_cat['unique_ratio']=df_all_cat['unique']/df_all_cat['count']
+#features_fill_freq=df_all_cat[df_all_cat.freq_ratio>=0.5].drop(labels,axis='rows').index.values.tolist()
+#features_fill_median=df_all_cat.drop(category,axis='rows')[(df_all_cat.freq_ratio<0.5) & (df_all_cat.unique_ratio>=0.5)].index.values.tolist()
+#features_fill_mean=df_all_cat.drop(category,axis='rows')[(df_all_cat.freq_ratio<0.5) & (df_all_cat.unique_ratio<0.5)].index.values.tolist()
+#median= df_all[features_fill_median].median()
+#mean= df_all[features_fill_mean].mean()
+#mean_= df[features_fill_mean].mean()
+#mean_n= df_[features_fill_mean].mean()
+##mean_=pd.DataFrame([mean,mean_,mean_n]).transpose().mean(axis='columns')
+#freq=df_all_cat[df_all_cat.freq_ratio>=0.5].drop(labels,axis='rows')['top']
+#df_fill[features_fill_freq]=df_all[features_fill_freq].fillna(freq)
+#df_fill[features_fill_median]=df_all[features_fill_median].fillna(median)
+#df_fill[features_fill_mean]=df_all[features_fill_mean].fillna(mean)
+#df_fill=df_fill.fillna(0)
 
-df_obj_cat['ratio']=df_obj_cat['freq']/df_obj_cat['count']
-#df_obj_cat=df_obj_cat[df_obj_cat.ratio>0.5]
 
-df_obj_n_cat['ratio']=df_obj_n_cat['freq']/df_obj_n_cat['count']
-#df_obj_n_cat=df_obj_n_cat[df_obj_n_cat.ratio>0.5]
+df_obj_cat['freq_ratio']=df_obj_cat['freq']/df_obj_cat['count']
+df_obj_cat['unique_ratio']=df_obj_cat['unique']/df_obj_cat['count']
+df_obj_cat=df_obj_cat[df_obj_cat.freq_ratio>=0.5]
 
-df_all_obj_cat['ratio']=df_all_obj_cat['freq']/df_all_obj_cat['count']
-#df_all_obj_cat=df_all_obj_cat[df_obj_cat.ratio>0.5]
+df_obj_n_cat['freq_ratio']=df_obj_n_cat['freq']/df_obj_n_cat['count']
+#df_obj_n_cat=df_obj_n_cat[df_obj_n_cat.freq_ratio>0.5]
+
+df_all_obj_cat['freq_ratio']=df_all_obj_cat['freq']/df_all_obj_cat['count']
+df_all_obj_cat['unique_ratio']=df_all_obj_cat['unique']/df_all_obj_cat['count']
+
+#df_all_obj_cat=df_all_obj_cat[df_obj_cat.freq_ratio>0.5]
 
 #df_cat=cat(df).describe()
 #df_cat=df_cat.transpose()

@@ -222,11 +222,11 @@ def boostingClassifier(X_train,y_train,X_test,y_test):
         X_test=X_test.as_matrix().astype(np.float)
         X_test = scaler.transform(X_test)
     
-    return scores(y_test,dt.fit(X_train,y_train).predict(X_test),'DT')
+    scores(y_test,dt.fit(X_train,y_train).predict(X_test),'DT')
 #    scores(y_test,rf.fit(X_train,y_train).predict(X_test),'RF')
-#    ensemble = AdaBoostClassifier(n_estimators=100, base_estimator=dt,learning_rate=1)
-    #Above I have used decision tree as a base estimator, you can use any ML learner as base estimator if it ac# cepts sample weight 
-#    scores(y_test,ensemble.fit(X_train,y_train).predict(X_test),'AdaBoosting')
+    ensemble = AdaBoostClassifier(n_estimators=100, base_estimator=dt,learning_rate=1)
+#    Above I have used decision tree as a base estimator, you can use any ML learner as base estimator if it ac# cepts sample weight 
+    scores(y_test,ensemble.fit(X_train,y_train).predict(X_test),'AdaBoosting')
 #    ensemble=GradientBoostingClassifier()
 #    scores(y_test,ensemble.fit(X_train,y_train).predict(X_test),'GDBoosting')
 #stacking_train_dataset,stacking_test_dataset  
@@ -985,3 +985,8 @@ def expectation_maximization(t, nbclusters=2, nbiter=3, normalize=False,
                     if Px[o,c] == max(Px[o,:])]\
                     for c in xrange(nbclusters)]
     return result
+def to_category(obj):
+   tmp=obj.copy()
+   for col in tmp.columns:
+         tmp[col]=tmp[col].astype('category')    
+   return tmp

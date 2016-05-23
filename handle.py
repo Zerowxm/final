@@ -15,6 +15,36 @@ pd.set_option('display.max_columns', None) # Display any number of columns
 #groups = pd.cut(df.Var1, bins)
 #print groups
 #label='upselling'
+def loadFile(file,header=0):
+    df=pd.read_table(file,header=header)
+    return df
+def loadData():
+    # comment start
+    # read data
+    #comment end
+    data="orange_small_train.data"
+    appetency='orange_small_train_appetency.labels'
+    churn='orange_small_train_churn.labels'
+    upselling='orange_small_train_upselling.labels'
+    df=loadFile(data)
+    appetency=loadFile(appetency,None)
+    churn=loadFile(churn,None)
+    upselling=loadFile(upselling,None)
+    churn.columns=['churn']
+    appetency.columns=['appetency']
+    upselling.columns=['upselling']
+    df=pd.concat([df,churn,appetency,upselling],axis=1) # concat data and label
+    df_all=df.dropna(axis='columns',how='all')
+    df_all_cat=u.to_category(df_all).describe()
+    df_all_cat=df_all_cat.transpose()
+    df_all_cat=df_all_cat[df_all_cat.unique>1]
+    
+    df=df[df_all_cat.index]
+    df_all=df_all[df_all_cat.index]
+    missing_count=df.notnull().sum(axis=1)
+    df['missing_count']=missing_count
+    df=df.sort_values('missing_count',axis='index')
+    return df
 def split_data(df,label):
     df_=df[df[label]==-1] # choose the label == -1
     df=df[df[label]==1]# choose the label == 1
@@ -22,6 +52,7 @@ def split_data(df,label):
     df_split=np.array_split(df_, split)
     df_split=[pd.concat([df,i]) for i in df_split]
     return df_split
+    
 def handle_missing(df_all,label,is_common=True,replace=0):
     labels=['churn','appetency','upselling']
     df_all_cat=u.to_category(df_all).describe()
@@ -30,7 +61,6 @@ def handle_missing(df_all,label,is_common=True,replace=0):
     df_all=df_all[df_all_cat.index]
     temp=df_all.drop(df_all.dropna(axis='columns',how='any').columns.values,axis='columns').columns.values.tolist()
     null=pd.isnull(df_all[temp]).as_matrix().astype(np.int)
-    missing_count=df_all.notnull().sum(axis=1)
     temp=[s + '_' for s in temp]
     null=pd.DataFrame(null,columns=temp)
     
@@ -61,18 +91,17 @@ def handle_missing(df_all,label,is_common=True,replace=0):
         freq=df_all_cat[df_all_cat.freq_ratio>=0.5].drop(labels,axis='rows')['top']
         df_fill[features_fill_freq]=df_all[features_fill_freq].fillna(freq)
         df_fill[features_fill_median]=df_all[features_fill_median].fillna(median)
-        df_fill[features_fill_mean]=df_all[features_fill_mean].fillna(mean_)
+        df_fill[features_fill_mean]=df_all[features_fill_mean].fillna(mean)
         df_fill=df_fill.fillna('0')
         df_fill[category]=df_fill[category].apply(u.convert_test,axis='index')
     return df_fill
-df_fill=handle_missing(df_all,label,is_common=True)
 
-y=df_all[label]
+
 #X=u.standardize_df(df_fill.drop(labels,axis='columns'))
-X=df_fill.drop(labels,axis='columns')
+#y=df_all[label],X=df_fill.drop(labels,axis='columns')
 #X_trai,y_trai=u.test_rest(X.as_matrix(),y.as_matrix(),0,ratio=1) 
 #u.treeClassifer(X_trai,y_trai)
-X_train, X_test, y_train, y_test=u.split(X,y)
+#X_train, X_test, y_train, y_test=u.split(X,y)
 #df_fill=df_all.copy()
 #df_all_cat['freq_ratio']=df_all_cat['freq']/df_all_cat['count']
 #df_all_cat['unique_ratio']=df_all_cat['unique']/df_all_cat['count']

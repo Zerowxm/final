@@ -8,37 +8,18 @@ import pandas as pd
 from adasyn import ADASYN
 import utils as u
 from collections import Counter
-#y=train[label]
-#X_train, X_test, y_train, y_test=u.split(df_all,'churn')
-X_trai=X_train.copy()
-y_trai=y_train.copy()
-#X=train.drop(['churn','appetency','upselling',label],axis='columns')
-X_trai[category]=X_trai[category].fillna('0')
-X_trai[category]=u.normalize_df(X_trai[category].apply(u.convert_test,axis='index'))
-mean=X_trai.mean()
-median=X_trai.median()
-X_trai=X_trai.fillna(mean,axis='rows')
-
-
-X_tes=X_test.copy()
-y_tes=y_test.copy()
-X_tes[category]=X_tes[category].fillna('0')
-X_tes[category]=u.normalize_df(X_tes[category].apply(u.convert_test,axis='index'))
-X_tes=X_tes.fillna(mean,axis='rows')
-
-select=False
-if(select):
-    X_trai=X_trai[features_selected]
-    X_tes=X_tes[features_selected]
-
+import handle
+#df=handle.handle_missing(df_all,label,is_common=True)
+#y=df[label],X=df.drop(labels,axis='columns')
+#X_train, X_test, y_train, y_test=u.split(X,y)
+X_trai=X_train.copy().as_matrix()
+y_trai=y_train.copy().as_matrix()
+columns=X_train.columns.values
 oversample=False
 from sklearn.grid_search import ParameterGrid
 grid = ParameterGrid({"k": [3,4,5,6,7],
                           "ratio": [0.1,0.2,0.3,0.4,0.5] })
-columns=X_trai.columns.values   
-#X_trai,y_trai=u.test_rest(X_trai.as_matrix(),y_trai.as_matrix()) 
-#y_trai=x_smote['churn']
-#X_trai=x_smote.drop('churn',axis='columns')        
+   
 if(oversample):
 #    scores=[]
 #    for params in grid:
@@ -46,15 +27,35 @@ if(oversample):
         adsn = ADASYN(imb_threshold=0.8,ratio=4)
         X_trai, y_trai = adsn.fit_transform(X_trai,y_trai)  # your imbalanced dataset is in X,y
 #        X_trai,y_trai=u.test_rest(X_trai,y_trai) 
-        u.boostingClassifier(X_trai,y_trai,X_tes,y_tes)
+        u.all_lassifer(X_trai,y_trai,X_test,y_test)
+#        u.all_lassifer(X_trai,y_trai,X_tes,y_tes)
 #        scores.append(u.boostingClassifier(X_trai,y_trai,X_tes,y_tes))
 #        scroes=pd.DataFrame(scores,columns=['auc','f1','accuracy','precision','recall','kappa'])
 #        print Counter(y_trai)
 else:
-#    X_trai,y_trai=u.test_rest(X_trai.as_matrix(),y_trai.as_matrix(),2) 
-    u.boostingClassifier(X_trai,y_trai,X_tes,y_tes)
+    scores=[]
+    predcit=[]
+    grid = ParameterGrid({'c':[0] })
+    for params in grid:
+        print params
+        X_trai,y_trai=u.test_rest(X_trai,y_trai,ratio=6,**params) 
+        X_trai,y_trai=u.test_smote(X_trai,y_trai,0)
+        X_trai=pd.DataFrame(X_trai,columns=columns)
+#        columns=u.gbc(X_trai,y_trai,columns)
+#        X_trai=X_trai[columns]
+    
+#    adsn = ADASYN(imb_threshold=0.8,ratio=2)
+#    X_trai, y_trai = adsn.fit_transform(X_trai,y_trai)
+#        for i in range(9):
+#            scores.append(u.gbClassifier(X_trai[i],y_trai[i],X_tes,y_tes))
+        X_trai,X_tes=u.stackingClassifier(X_trai,y_trai,X_test[columns],y_test)
+#        predcit_,score=u.gbClassifier(X_trai,y_trai,X_tes,y_test)
+        u.all_lassifer(X_trai,y_trai,X_tes,y_test)
+#        scores.append(score)
+#        predcit.append(predcit_)
+#    u.gbc(X_trai.as_matrix(),y_trai.as_matrix(),columns)
 print Counter(y_trai)
-#u.treeClassifer(new,'churn')
+#u.treeClassifer(X,y)
 
 #from collections import Counter
 

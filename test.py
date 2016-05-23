@@ -147,4 +147,3 @@ def test_CNN(x, y):
     
 #    test_rest(X, Y)
 #    test_CNN(X, Y)
->>>>>>> 396386efdf03d08499a7a08afacf5ff8c293746b

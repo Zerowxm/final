@@ -55,21 +55,34 @@ def split_data(df,label):
     
 def handle_missing(df_all,label,is_common=True,replace=0):
     labels=['churn','appetency','upselling']
+    isnull=df_all.isnull().sum()/df_all.shape[0]
+    filter_var=isnull=isnull[isnull<0.5].index.values.tolist()
+    df_all=df_all[filter_var]
     df_all_cat=u.to_category(df_all).describe()
     df_all_cat=df_all_cat.transpose()
     df_all_cat=df_all_cat[df_all_cat.unique>1]
     df_all=df_all[df_all_cat.index]
+    
+    category=df_all.select_dtypes(include=['object']).columns.values.tolist()
+#    obj=df_all[category].describe().transpose()
+#    obj['unique_ratio']=obj['unique']/obj['count']
+#    thre=100
+#    obj=obj[obj.unique>thre]
+#    obj=df_all[obj.index].fillna(0)
+#    for col in obj:
+#        unique=pd.value_counts(obj[col]).iloc[:thre].index.values.tolist()
+#        obj.ix[~obj[col].isin(unique),col]=0
+#    df_all[obj.columns]=obj
+    
     temp=df_all.drop(df_all.dropna(axis='columns',how='any').columns.values,axis='columns').columns.values.tolist()
     null=pd.isnull(df_all[temp]).as_matrix().astype(np.int)
     temp=[s + '_' for s in temp]
     null=pd.DataFrame(null,columns=temp)
-    
+#    df_all=pd.concat([df_all,null],axis='columns')
     df_fill=df_all.copy()
-    category=df_all.select_dtypes(include=['object']).columns.values.tolist()  
     if(is_common):
-        df_fill[category]=df_fill[category].fillna('0')
-        df_fill[category]=df_fill[category].apply(u.convert_test,axis='index')
         df_fill=df_fill.fillna(replace)
+        df_fill[category]=df_fill[category].apply(u.convert_test,axis='index')
     else: 
         df_=df_all[df_all[label]==-1] # choose the label == -1
         df=df_all[df_all[label]==1]# choose the label == 1
@@ -82,18 +95,29 @@ def handle_missing(df_all,label,is_common=True,replace=0):
         features_fill_freq=df_all_cat[df_all_cat.freq_ratio>=0.5].drop(labels,axis='rows').index.values.tolist()
         features_fill_median=df_all_cat.drop(category,axis='rows')[(df_all_cat.freq_ratio<0.5) & (df_all_cat.unique_ratio>=0.5)].index.values.tolist()
         features_fill_mean=df_all_cat.drop(category,axis='rows')[(df_all_cat.freq_ratio<0.5) & (df_all_cat.unique_ratio<0.5)].index.values.tolist()
-        median= df_all[features_fill_median].median()
-        mean= df_all[features_fill_mean].mean()
-        mean_= df[features_fill_mean].mean()
-        mean_n= df_[features_fill_mean].mean()
-        mean=(mean_+mean_n)/2
+        use_all=True
+        if(use_all):
+            mean=df_all.mean()
+            median=df_all.median()  
+            df_fill=df_fill.fillna(median)
+        else:
+            median= df_all[features_fill_median].median()
+            mean_= df[features_fill_mean].mean()
+            mean_n= df_[features_fill_mean].mean()
+            use_p=False
+            if(use_p):
+                mean=(mean_+mean_n)/2
+            else:
+                mean= df_all[features_fill_mean].mean()
+            freq=df_all_cat[df_all_cat.freq_ratio>=0.5].drop(labels,axis='rows')['top']
+            df_fill[features_fill_freq]=df_all[features_fill_freq].fillna(freq)
+            df_fill[features_fill_median]=df_all[features_fill_median].fillna(median)
+            df_fill[features_fill_mean]=df_all[features_fill_mean].fillna(mean)
+            df_fill=df_fill.fillna(0)
+        
         #mean_=pd.DataFrame([mean,mean_,mean_n]).transpose().mean(axis='columns')
-        freq=df_all_cat[df_all_cat.freq_ratio>=0.5].drop(labels,axis='rows')['top']
-        df_fill[features_fill_freq]=df_all[features_fill_freq].fillna(freq)
-        df_fill[features_fill_median]=df_all[features_fill_median].fillna(median)
-        df_fill[features_fill_mean]=df_all[features_fill_mean].fillna(mean)
-        df_fill=df_fill.fillna('0')
-        df_fill[category]=df_fill[category].apply(u.convert_test,axis='index')
+        
+        df_fill[category]=df_fill[category].apply(u.convert_train,axis='index')
     return df_fill
 
 

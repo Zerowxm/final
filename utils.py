@@ -30,7 +30,7 @@ from sklearn.feature_selection import VarianceThreshold
 from sklearn.preprocessing import Imputer
 from sklearn import tree
 from sklearn.externals import joblib
-from sklearn.metrics import roc_curve, auc,roc_auc_score
+from sklearn.metrics import roc_curve, auc,roc_auc_score,mean_squared_error
 import sklearn.linear_model as lm
 from sklearn.neighbors import KNeighborsClassifier
 from itertools import cycle
@@ -63,112 +63,8 @@ from unbalanced_dataset.pipeline import SMOTEENN
 from unbalanced_dataset.pipeline import SMOTETomek
 plt.style.use('fivethirtyeight') # Good looking plots
 pd.set_option('display.max_columns', None) # Display any number of columns
-def auc_compute(actual,predictions):
-    false_positive_rate, true_positive_rate, thresholds = roc_curve(actual, predictions)
-    roc_auc = auc(false_positive_rate, true_positive_rate)
-    plt.title('Receiver Operating Characteristic')
-    plt.plot(false_positive_rate, true_positive_rate, 'b',
-    label='AUC = %0.2f'% roc_auc)
-    plt.legend(loc='lower right')
-    plt.plot([0,1],[0,1],'r--')
-    plt.xlim([-0.1,1.2])
-    plt.ylim([-0.1,1.2])
-    plt.ylabel('True Positive Rate')
-    plt.xlabel('False Positive Rate')
-    plt.show()   
-    # may differ
-    print auc(false_positive_rate, true_positive_rate)
-    print roc_auc_score(actual,predictions)
-    
-def split(X,y,test_size=0.1):
-    X_train, X_test, y_train, y_test = cross_validation.train_test_split(
-     X, y, test_size=test_size, random_state=0)
-    return X_train, X_test, y_train, y_test 
-
-def scores(X,y,name):
-    print(name+' Classifier:\n {}'.format(metrics.classification_report(X,y)))
-    cm= metrics.confusion_matrix(X,y)
-    print cm
-    auc=roc_auc_score(X,y)
-    print(name+' Classifier auc:  %0.2f (+/- %0.2f)' % (auc.mean(), auc.std()))
-    accuracy=metrics.accuracy_score(X,y)
-    print(name+' Classifier accuracy:  %0.2f (+/- %0.2f)' % (accuracy.mean(), accuracy.std()))
-    f1=metrics.f1_score(X,y,pos_label=1)
-    print(name+' Classifier f1: %0.2f (+/- %0.2f)' % (f1.mean(), f1.std()))
-    precision=metrics.precision_score(X,y)
-    print(name+' Classifier precision_score: %0.2f (+/- %0.2f)' % (precision.mean(), precision.std()))
-    recall=metrics.recall_score(X,y)
-    print(name+' Classifier recall_score: %0.2f (+/- %0.2f)' % (recall.mean(), recall.std()))
-    kappa_score=kappa(X,y)
-    print(name+' Classifier kappa_score: %0.2f (+/- %0.2f)' % (kappa_score.mean(), kappa_score.std()))
-    return [auc,f1.mean(),accuracy.mean(),precision.mean(),recall.mean(),kappa_score]
-    
-def cutoff_predict(clf,X,cutoff):
-    return (clf.predict_proba(X)[:,1]>cutoff).astype(int)
-
-def custom_f1(cutoff):
-    def f1_cutoff(clf,X,y):
-        ypred= cutoff_predict(clf,X,cutoff)
-        return metrics.f1_score(y,ypred)
-    return f1_cutoff
-   
-def test(X,label, sample_weight=None,cv=10):
-    scores=[]
-    y=X[label]
-    X=X.drop(['churn','appetency','upselling',label],axis='columns')
-    for cutoff in np.arange(0.1,0.9,0.1):
-        clf=RandomForestClassifier(n_estimators=15,class_weight ='balanced') 
-        valideted=cross_validation.cross_val_score(clf,X,y,scoring=custom_f1(cutoff))
-        print(" f1: %0.2f (+/- %0.2f)" % (valideted.mean(), valideted.std()))
-        scores.append(valideted)
         
-def select_features(X,label):
-    y=X[label]
-    X=X.drop(['churn','appetency','upselling',label],axis='columns')
-    is_poly=True
-    if(is_poly):
-        X = X.as_matrix().astype(np.float)
-        polynomial_features = preprocessing.PolynomialFeatures()
-        X = polynomial_features.fit_transform(X)
-    else:
-        X=X.as_matrix().astype(np.float)
-        scaler = preprocessing.StandardScaler()
-        X = scaler.fit_transform(X)
-    y=y.as_matrix().astype(np.int)
-    f1=scores(y,stratified_cv(X, y, DecisionTreeClassifier),'DT')
-    return f1
-    
-def treeClassiferPredict(X_train,y_train,X_test,y_test ,sample_weight=None,cv=1):
-    est = DecisionTreeClassifier(min_samples_split=1)
-    to_standard=False
-    if(to_standard):
-        X_train=X_train.as_matrix().astype(np.float)
-        scaler = preprocessing.StandardScaler()
-        X_train = scaler.fit_transform(X_train)
-    if(to_standard):
-        X_test=X_test.as_matrix().astype(np.float)
-        X_test = scaler.transform(X_test)
-    est = est.fit(X_train, y_train,sample_weight=sample_weight)
-    scores(y_test,est.predict(X_test),'DT')    
-    
-def gbc(X,y,columns_names):
-    gbc = GradientBoostingClassifier()
-    gbc.fit(X, y)
-    # Get Feature Importance from the classifier
-    feature_importance = gbc.feature_importances_
-    # Normalize The Features
-    feature_importance = 100.0 * (feature_importance / feature_importance.max())
-    sorted_idx = np.argsort(feature_importance)
-    feature_importance= feature_importance[sorted_idx]
-    feature_importance=[x for x in feature_importance if x >0]
-    pos = np.arange(len(feature_importance)) + .5
-    plt.figure(figsize=(16, 12))
-    plt.barh(pos, feature_importance, align='center', color='#7A68A6')
-    plt.yticks(pos, np.asanyarray(columns_names)[sorted_idx][-len(feature_importance):])
-    plt.xlabel('Relative Importance')
-    plt.title('Variable Importance')
-    plt.show() 
-    return np.asanyarray(columns_names)[sorted_idx][-len(feature_importance):]
+
     
 def blend(X_train,y_train,X_test,y_test):
     np.random.seed(0) # seed to shuffle the train set
@@ -186,7 +82,6 @@ def blend(X_train,y_train,X_test,y_test):
         y = y[idx]
 
     skf = list(cross_validation.StratifiedKFold(y, n_folds))
-
     clfs = [RandomForestClassifier(n_estimators=100, n_jobs=-1, criterion='gini'),
             RandomForestClassifier(n_estimators=100, n_jobs=-1, criterion='entropy'),
             ExtraTreesClassifier(n_estimators=100, n_jobs=-1, criterion='gini'),
@@ -225,29 +120,75 @@ def blend(X_train,y_train,X_test,y_test):
 
     print "Saving Results."
     np.savetxt(fname='test.csv', X=y_submission, fmt='%0.9f')  
+def cutoff_predict(clf,X,cutoff):
+    return (clf.predict_proba(X)[:,1]>cutoff).astype(int)
 
+def custom_f1(cutoff):
+    def f1_cutoff(clf,X,y):
+        ypred= cutoff_predict(clf,X,cutoff)
+        return metrics.f1_score(y,ypred)
+    return f1_cutoff
+   
+def test(X,label, sample_weight=None,cv=10):
+    scores=[]
+    y=X[label]
+    X=X.drop(['churn','appetency','upselling',label],axis='columns')
+    for cutoff in np.arange(0.1,0.9,0.1):
+        clf=RandomForestClassifier(n_estimators=15,class_weight ='balanced') 
+        valideted=cross_validation.cross_val_score(clf,X,y,scoring=custom_f1(cutoff))
+        print(" f1: %0.2f (+/- %0.2f)" % (valideted.mean(), valideted.std()))
+        scores.append(valideted)
 def gbClassifier(X_train,y_train,X_test,y_test):
-    gbc = GradientBoostingClassifier()
-    return gbc.fit(X_train,y_train).predict_proba(X_test),scores(y_test,gbc.fit(X_train,y_train).predict(X_test),'gbc')     
-def all_lassifer(X_train,y_train,X_test,y_test):
-    rf=RandomForestClassifier(n_estimators=15,class_weight ='balanced') 
-    scores(y_test,rf.fit(X_train,y_train).predict(X_test),'RT')
-    gbc = GradientBoostingClassifier()
-    scores(y_test,gbc.fit(X_train,y_train).predict(X_test),'gbc') 
-    auc_compute(y_test,gbc.fit(X_train,y_train).predict(X_test))    
-    ets=ExtraTreesClassifier(n_estimators=10,max_depth=None,min_samples_split=1,random_state=0)
-    scores(y_test,ets.fit(X_train,y_train).predict(X_test),'ets') 
-    lgr = LogisticRegression()
-    scores(y_test,lgr.fit(X_train,y_train).predict(X_test),'lgr') 
-    ab = AdaBoostClassifier(n_estimators=100)
-    scores(y_test,ab.fit(X_train,y_train).predict(X_test),'abboost') 
-    dt = DecisionTreeClassifier(max_depth=None, min_samples_split=1,random_state=0)
-    scores(y_test,dt.fit(X_train,y_train).predict(X_test),'dt') 
-#    eclf = VotingClassifier(estimators=[('lr', lgr), ('rf', rf), 
-#                                        ('ab',ab),('gd',gbc),('dt',dt),('ETs',ets)],
-#                                         voting='soft')
-#    scores(y_test,eclf.fit(X_train,y_train).predict(X_test),'voting') 
+    params = {'n_estimators': 500, 'max_depth': 4, 'min_samples_split': 1,
+          'learning_rate': 0.01}
+    clf = GradientBoostingClassifier(**params)
+#    clf=make_pipeline(preprocessing.StandardScaler(),gbc)
+    predictions=clf.fit(X_train,y_train).predict(X_test)
+    mse=mean_squared_error(y_test, predictions)
+    print("MSE: %.4f" % mse)
+    # compute test set deviance
+    test_score = np.zeros((params['n_estimators'],), dtype=np.float64)
     
+    for i, y_pred in enumerate(clf.staged_predict(X_test)):
+        test_score[i] = clf.loss_(y_test, predictions)
+    
+    plt.figure(figsize=(12, 6))
+    plt.subplot(1, 2, 1)
+    plt.title('Deviance')
+    plt.plot(np.arange(params['n_estimators']) + 1, clf.train_score_, 'b-',
+             label='Training Set Deviance')
+    plt.plot(np.arange(params['n_estimators']) + 1, test_score, 'r-',
+             label='Test Set Deviance')
+    plt.legend(loc='upper right')
+    plt.xlabel('Boosting Iterations')
+    plt.ylabel('Deviance')
+#    scores(y_test,predictions,'clf')  
+    return scores(y_test,clf.fit(X_train,y_train).predict(X_test),'gbc')    
+
+def all_lassifer(X_train,y_train,X_test,y_test):
+    
+    
+    rf=RandomForestClassifier(n_estimators=15,class_weight ='balanced') 
+    score1=scores(y_test,rf.fit(X_train,y_train).predict(X_test),'RT')
+    params = {'n_estimators': 500, 'max_depth': 4, 'min_samples_split': 1,
+          'learning_rate': 0.01}
+    gbc = GradientBoostingClassifier(**params)
+    score2=scores(y_test,gbc.fit(X_train,y_train).predict(X_test),'gbc') 
+    auc_compute(y_test,gbc.fit(X_train,y_train).predict(X_test))    
+    ets=ExtraTreesClassifier(n_estimators=100,max_depth=None,min_samples_split=1,random_state=0)
+    score3=scores(y_test,ets.fit(X_train,y_train).predict(X_test),'ets') 
+    lgr = LogisticRegression()
+    score4=scores(y_test,lgr.fit(X_train,y_train).predict(X_test),'lgr') 
+    ab = AdaBoostClassifier(n_estimators=1000)
+    score5=scores(y_test,ab.fit(X_train,y_train).predict(X_test),'abboost') 
+    dt = DecisionTreeClassifier(max_depth=None, min_samples_split=1,random_state=0)
+    score6=scores(y_test,dt.fit(X_train,y_train).predict(X_test),'dt') 
+    eclf = VotingClassifier(estimators=[ ('rf', rf), 
+                                        ('gd',gbc),('ETs',ets),('lr', lgr),('ab',ab),('dt',dt)],
+                                         voting='soft',weights =[score1[0],score2[0],score3[0],score4[0],score5[0],score6[0]])
+    score7=scores(y_test,eclf.fit(X_train,y_train).predict(X_test),'voting') 
+    print eclf
+    return [score1,score2,score3,score4,score5,score6,score7]
 def handle_imbalance(X_trai,y_trai,X_tes,y_tes):
     grid = ParameterGrid({"k": [3,4,5,6,7],
                           "ratio": [0.1,0.2,0.3,0.4,0.5] })
@@ -459,6 +400,7 @@ def test_smote(x, y,c=0):
         sm = SMOTE(kind='svm', verbose=verbose, **svm_args)
         svmx, svmy = sm.fit_transform(x, y)
     return svmx,svmy
+
 
 def test_rest(x, y,c=0,ratio='auto'):
     c=c
@@ -935,3 +877,63 @@ def km(X,label):
     plt.xticks(())
     plt.yticks(())
     plt.show()
+    
+def auc_compute(actual,predictions):
+    false_positive_rate, true_positive_rate, thresholds = roc_curve(actual, predictions)
+    roc_auc = auc(false_positive_rate, true_positive_rate)
+    plt.title('Receiver Operating Characteristic')
+    plt.plot(false_positive_rate, true_positive_rate, 'b',
+    label='AUC = %0.2f'% roc_auc)
+    plt.legend(loc='lower right')
+    plt.plot([0,1],[0,1],'r--')
+    plt.xlim([-0.1,1.2])
+    plt.ylim([-0.1,1.2])
+    plt.ylabel('True Positive Rate')
+    plt.xlabel('False Positive Rate')
+    plt.show()   
+    # may differ
+    print auc(false_positive_rate, true_positive_rate)
+    print roc_auc_score(actual,predictions)
+def gbc_features(X,y,columns_names):
+    gbc = GradientBoostingClassifier()
+    gbc.fit(X, y)
+    # Get Feature Importance from the classifier
+    feature_importance = gbc.feature_importances_
+    # Normalize The Features
+    feature_importance = 100.0 * (feature_importance / feature_importance.max())
+    sorted_idx = np.argsort(feature_importance)
+    feature_importance= feature_importance[sorted_idx]
+    feature_importance=[x for x in feature_importance if x >0]
+#    pos = np.arange(len(feature_importance)) + .5
+#    plt.figure(figsize=(16, 12))
+#    plt.barh(pos, feature_importance, align='center', color='#7A68A6')
+#    plt.yticks(pos, np.asanyarray(columns_names)[sorted_idx][-len(feature_importance):])
+#    plt.xlabel('Relative Importance')
+#    plt.title('Variable Importance')
+#    plt.show() 
+    return np.asanyarray(columns_names)[sorted_idx][-len(feature_importance):]    
+def split(X,y,test_size=0.1):
+    X_train, X_test, y_train, y_test = cross_validation.train_test_split(
+     X, y, test_size=test_size, random_state=0)
+    return X_train, X_test, y_train, y_test 
+
+def scores(X,y,name):
+#    print(name+' Classifier:\n {}'.format(metrics.classification_report(X,y)))
+    cm= metrics.confusion_matrix(X,y)
+    print cm
+    auc=roc_auc_score(X,y)
+    print(name+' Classifier auc:  %0.2f (+/- %0.2f)' % (auc.mean(), auc.std()))
+    accuracy=metrics.accuracy_score(X,y)
+    print(name+' Classifier accuracy:  %0.2f (+/- %0.2f)' % (accuracy.mean(), accuracy.std()))
+    f1=metrics.f1_score(X,y,pos_label=1)
+    print(name+' Classifier f1: %0.2f (+/- %0.2f)' % (f1.mean(), f1.std()))
+    precision=metrics.precision_score(X,y)
+    print(name+' Classifier precision_score: %0.2f (+/- %0.2f)' % (precision.mean(), precision.std()))
+    recall=metrics.recall_score(X,y)
+    print(name+' Classifier recall_score: %0.2f (+/- %0.2f)' % (recall.mean(), recall.std()))
+    kappa_score=kappa(X,y)
+    
+    print(name+' Classifier kappa_score: %0.2f (+/- %0.2f)' % (kappa_score.mean(), kappa_score.std()))
+    return [auc,f1.mean(),accuracy.mean(),precision.mean(),recall.mean(),kappa_score]
+    
+    

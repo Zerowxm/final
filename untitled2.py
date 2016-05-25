@@ -7,7 +7,7 @@ Created on Fri May 20 19:59:22 2016
 import matplotlib.pyplot as plt
 import pandas as pd 
 import utils 
-#test=pd.read_csv('test.csv',header=None)
+test=pd.read_csv('test.csv',header=None)
 #y_=pd.DataFrame(y_test.copy())
 ##y_=pd.concat([y_,test],axis='columns')
 #y_['predict']=test.values

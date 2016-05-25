@@ -21,15 +21,16 @@ import handle
     
 if __name__ == "__main__":
     labels=['churn','appetency','upselling']
-    label='upselling'
+    label='appetency'
     df=handle.loadData()
     df_all=df
-    df_fill=handle.handle_missing(df,label,is_common=True)
-    y=df_fill[label]
-    X=df_fill.drop(labels,axis='columns')
+    df_fill=handle.handle_missing(df,label,is_common=True,replace=0)
+    y_=df_fill[label]
+    X_=df_fill.drop(labels,axis='columns')
 #    X=X[u.gbc(X,y,X.columns)]
-    X_train, X_test, y_train, y_test=u.split(X,y)
-#    
+    X_train, X_test, y_train, y_test=u.split(X_,y_,test_size=0.1)
+    df_split=handle.split_data(pd.concat([X_train, y_train],axis='columns'),label)
+    
     # comment start
     # divide the data into two classes
     #comment end

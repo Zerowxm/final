@@ -56,23 +56,19 @@ def split_data(df,label):
 def handle_missing(df_all,label,is_common=True,replace=0):
     labels=['churn','appetency','upselling']
     isnull=df_all.isnull().sum()/df_all.shape[0]
-    filter_var=isnull=isnull[isnull<0.5].index.values.tolist()
+    filter_var=isnull=isnull[isnull<0.8].index.values.tolist()
     df_all=df_all[filter_var]
     df_all_cat=u.to_category(df_all).describe()
     df_all_cat=df_all_cat.transpose()
     df_all_cat=df_all_cat[df_all_cat.unique>1]
     df_all=df_all[df_all_cat.index]
     
+    df_n=df_all[df_all[label]==-1]
+    num_n=df_n.isnull().sum(axis=1).sort_values(ascending=False,kind='quicksort') /df_all.shape[1]
+    num=df_all.isnull().sum(axis=1).sort_values(ascending=False,kind='quicksort') /df_all.shape[1]
+#    df_all=df_all.drop(num_n[num_n>0.5].index)
+    
     category=df_all.select_dtypes(include=['object']).columns.values.tolist()
-#    obj=df_all[category].describe().transpose()
-#    obj['unique_ratio']=obj['unique']/obj['count']
-#    thre=100
-#    obj=obj[obj.unique>thre]
-#    obj=df_all[obj.index].fillna(0)
-#    for col in obj:
-#        unique=pd.value_counts(obj[col]).iloc[:thre].index.values.tolist()
-#        obj.ix[~obj[col].isin(unique),col]=0
-#    df_all[obj.columns]=obj
     
     temp=df_all.drop(df_all.dropna(axis='columns',how='any').columns.values,axis='columns').columns.values.tolist()
     null=pd.isnull(df_all[temp]).as_matrix().astype(np.int)
@@ -82,7 +78,7 @@ def handle_missing(df_all,label,is_common=True,replace=0):
     df_fill=df_all.copy()
     if(is_common):
         df_fill=df_fill.fillna(replace)
-        df_fill[category]=df_fill[category].apply(u.convert_test,axis='index')
+        df_fill[category]=df_fill[category].apply(u.convert_train,axis='index')
     else: 
         df_=df_all[df_all[label]==-1] # choose the label == -1
         df=df_all[df_all[label]==1]# choose the label == 1
@@ -95,7 +91,7 @@ def handle_missing(df_all,label,is_common=True,replace=0):
         features_fill_freq=df_all_cat[df_all_cat.freq_ratio>=0.5].drop(labels,axis='rows').index.values.tolist()
         features_fill_median=df_all_cat.drop(category,axis='rows')[(df_all_cat.freq_ratio<0.5) & (df_all_cat.unique_ratio>=0.5)].index.values.tolist()
         features_fill_mean=df_all_cat.drop(category,axis='rows')[(df_all_cat.freq_ratio<0.5) & (df_all_cat.unique_ratio<0.5)].index.values.tolist()
-        use_all=True
+        use_all=False
         if(use_all):
             mean=df_all.mean()
             median=df_all.median()  
@@ -104,7 +100,7 @@ def handle_missing(df_all,label,is_common=True,replace=0):
             median= df_all[features_fill_median].median()
             mean_= df[features_fill_mean].mean()
             mean_n= df_[features_fill_mean].mean()
-            use_p=False
+            use_p=True
             if(use_p):
                 mean=(mean_+mean_n)/2
             else:
@@ -119,6 +115,29 @@ def handle_missing(df_all,label,is_common=True,replace=0):
         
         df_fill[category]=df_fill[category].apply(u.convert_train,axis='index')
     return df_fill
+    
+class HandleMissingValues(object):
+    def __init__(self,common=False,replace=0):
+        self.common=common
+        self.replace=replace
+        self.X=None
+        self.y=None
+        self.m
+    
+    def fit(self,X,y,common=False,replace=0):
+        self.X=X
+        self.y=y
+        self.common=common
+        self.replace=replace
+        
+    def fit_transform(self,X,y,common=False,replace=0):
+        self.X=X
+        self.y=y
+        self.common=common
+        self.replace=replace
+#        if(common):
+            
+        
 
 
 #X=u.standardize_df(df_fill.drop(labels,axis='columns'))

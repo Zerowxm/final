@@ -9,11 +9,13 @@ from adasyn import ADASYN
 import utils as u
 from collections import Counter
 import handle
+import stacked_generalization
 #df=handle.handle_missing(df_all,label,is_common=True)
 #y=df[label],X=df.drop(labels,axis='columns')
 #X_train, X_test, y_train, y_test=u.split(X,y)
 X_trai=X_train.copy().as_matrix()
 y_trai=y_train.copy().as_matrix()
+X_tes=X_test.copy()
 columns=X_train.columns.values
 oversample=False
 from sklearn.grid_search import ParameterGrid
@@ -26,7 +28,7 @@ if(oversample):
 #    scores=[]
 #    for params in grid:
 #        print params
-        adsn = ADASYN(imb_threshold=0.8,ratio=4)
+        adsn = ADASYN(imb_threshold=0.8,ratio=1)
         X_trai, y_trai = adsn.fit_transform(X_trai,y_trai)  # your imbalanced dataset is in X,y
 #        X_trai,y_trai=u.test_rest(X_trai,y_trai) 
         u.all_lassifer(X_trai,y_trai,X_test,y_test)
@@ -35,25 +37,57 @@ if(oversample):
 #        scroes=pd.DataFrame(scores,columns=['auc','f1','accuracy','precision','recall','kappa'])
 #        print Counter(y_trai)
 else:
-    scores=[]
+#    scores=[]
     predcit=[]
     grid = ParameterGrid({'c':[0] })
     for params in grid:
         print params
-        X_trai,y_trai=u.test_rest(X_trai,y_trai,ratio=1,**params) 
-#        X_trai,y_trai=u.test_smote(X_trai,y_trai,0)
-        X_trai=pd.DataFrame(X_trai,columns=columns)
-        scores=u.all_lassifer(X_trai,y_trai,X_test,y_test) 
+        X_trai,y_trai=u.test_rest(X_trai,y_trai,ratio=3,**params)
+        X_trai,y_trai=u.test_smote(X_trai,y_trai,c=0)
         
-#        columns=u.gbc(X_trai,y_trai,columns)
-#        X_trai=X_trai[columns]
-    
+        select=1
+        if(select==1):
+            X_trai=pd.DataFrame(X_trai,columns=columns)
+            columns=u.gbc_features(X_trai,y_trai,columns)
+            
+#        X_trai,y_trai=u.test_smote(X_trai.as_matrix(),y_trai,0)
+        elif(select==2):
+            columns=features_to_select[features_to_select.iloc[:]!=0].index.values.tolist()
+        if(select):
+            X_trai=pd.DataFrame(X_trai,columns=columns)
+            X_trai=X_trai[columns]
+#            scores=u.gbClassifier(X_trai,y_trai,X_test[columns],y_test) 
+            u.abClassifier(X_trai,y_trai,X_test[columns],y_test) 
+        else:   
+#            u.selectFeatures_train(X_trai,y_trai,k=20,p=60)
+#            X_trai=u.selectFeatures(X_trai,t=1)
+#            X_tes=u.selectFeatures(X_test,t=1)
+#            X_trai,X_tes=u.standardize(X_trai,X_tes)
+#            u.test(X_trai,y_trai,X_tes,y_test)
+#            X_trai,y_trai=u.test_rest(X_trai,y_trai,c=9)
+            best_score = 0.0
+            
+            # run many times to get a better result, it's not quite stable.
+#            for i in xrange(1):
+#                print 'Iteration [%s]' % (i)
+#                score = stacked_generalization.run(X_trai,y_trai,X_tes,y_test)
+#                best_score = max(best_score, score)
+#                print
+#                
+#            print 'Best score = %s' % (best_score)
+            score=u.gbClassifier(X_trai,y_trai,X_test,y_test,0)
+#            u.cross_val(X_trai.as_matrix(),y_trai)
+#            X_trai,X_tes=u.stackingClassifier(X_trai,y_trai,X_tes,y_test) 
+#            scores=u.test(X_trai,y_trai,X_tes,y_test) 
 #    adsn = ADASYN(imb_threshold=0.8,ratio=2)
 #    X_trai, y_trai = adsn.fit_transform(X_trai,y_trai)
-#        for i in range(9):
-#            scores.append(u.gbClassifier(X_trai[i],y_trai[i],X_tes,y_tes))
+#            for i in range(X_trai.shape[0]):
+#                X=X_trai[i] 
+#                y=y_trai[i]
+#                X,y=u.test_rest(X,y,c=9)
+#                u.gbClassifier(X,y,X_test,y_test)
 #        X_trai,X_tes=u.stackingClassifier(X_trai,y_trai,X_test[columns],y_test)
-#        predcit_,score=u.gbClassifier(X_trai,y_trai,X_tes,y_test)
+#        score=u.gbClassifier(X_trai,y_trai,X_test,y_test)
 #        u.all_lassifer(X_trai,y_trai,X_tes,y_test)
 #        scores.append(score)
 #        predcit.append(predcit_)

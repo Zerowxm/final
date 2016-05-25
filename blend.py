@@ -29,7 +29,7 @@ import load_data
 from sklearn.cross_validation import StratifiedKFold
 from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import AdaBoostClassifier
+from sklearn.ensemble import AdaBoostClassifier,VotingClassifier
 from sklearn.tree import DecisionTreeClassifier
 def logloss(attempt, actual, epsilon=1.0e-15):
     """Logloss, i.e. the score of the bioresponse competition.
@@ -37,7 +37,7 @@ def logloss(attempt, actual, epsilon=1.0e-15):
     attempt = np.clip(attempt, epsilon, 1.0-epsilon)
     return - np.mean(actual * np.log(attempt) + (1.0 - actual) * np.log(1.0 - attempt))
 
-
+import utils as u
 if __name__ == '__main__':
 
     np.random.seed(0) # seed to shuffle the train set
@@ -45,27 +45,31 @@ if __name__ == '__main__':
     n_folds = 10
     verbose = True
     shuffle = False
-
-    X, y, X_submission = load_data.load()
-    X=X_trai.as_matrix()
-    y=y_trai.as_matrix()
-    X_submission=X_tes.as_matrix()
-
+#    X_train, X_test, y_train, y_test=u.split(X_,y_,test_size=0.1)
+#    X, y, X_submission = load_data.load()
+#    X=X_train.as_matrix()
+#    y=y_train.as_matrix()
+#    X_submission=X_test.as_matrix()
+    y_test.to_csv('y_test1.csv')
     if shuffle:
         idx = np.random.permutation(y.size)
         X = X[idx]
         y = y[idx]
 
     skf = list(StratifiedKFold(y, n_folds))
-
-    clfs = [RandomForestClassifier(n_estimators=100, n_jobs=-1, criterion='gini'),
+    rf=RandomForestClassifier(n_estimators=100,class_weight ='balanced') 
+    gbc = GradientBoostingClassifier(n_estimators=50,learning_rate=0.05).fit(X_train,y_train)
+    ets=ExtraTreesClassifier(n_estimators=100,max_depth=None,min_samples_split=1,random_state=0)
+    ab = AdaBoostClassifier()
+    clfs = [
             RandomForestClassifier(n_estimators=100, n_jobs=-1, criterion='entropy'),
             ExtraTreesClassifier(n_estimators=100, n_jobs=-1, criterion='gini'),
-            ExtraTreesClassifier(n_estimators=100, n_jobs=-1, criterion='entropy'),
-            DecisionTreeClassifier(),
             AdaBoostClassifier(n_estimators=100, base_estimator=DecisionTreeClassifier(),learning_rate=1),
-            GradientBoostingClassifier( subsample=0.5, max_depth=6, n_estimators=50)]
-
+            GradientBoostingClassifier( subsample=0.5, max_depth=7, n_estimators=50)]
+#,
+#            VotingClassifier(estimators=[ ('rf', rf), 
+#                                        ('gd',gbc),('ETs',ets),('ab',ab)],
+#                                         voting='soft',weights =[2,3,1,2])
     print "Creating train and test sets for blending."
     
     dataset_blend_train = np.zeros((X.shape[0], len(clfs)))
@@ -76,12 +80,21 @@ if __name__ == '__main__':
         dataset_blend_test_j = np.zeros((X_submission.shape[0], len(skf)))
         for i, (train, test) in enumerate(skf):
             print "Fold", i
+           
             X_trai = X[train]
             y_trai = y[train]
             X_tes = X[test]
             y_tes = y[test]
+            X_trai,y_trai=u.test_rest(X_trai,y_trai,ratio=4)
+#            X_trai,y_trai=u.test_smote(X_trai,y_trai,c=0)
+#            if(i==(len(clfs)-1)):
+#                rf.fit(X_trai, y_trai)
+#                gbc.fit(X_trai, y_trai)
+#                ets.fit(X_trai, y_trai)
+#                ab.fit(X_trai, y_trai)
             clf.fit(X_trai, y_trai)
             y_submission = clf.predict_proba(X_tes)[:,1]
+#            print u.roc_auc_score(y_tes,y_submission),u.scores(y_tes,clf.predict(X_tes))
             dataset_blend_train[test, j] = y_submission
             dataset_blend_test_j[:, i] = clf.predict_proba(X_submission)[:,1]
         dataset_blend_test[:,j] = dataset_blend_test_j.mean(1)
@@ -93,7 +106,11 @@ if __name__ == '__main__':
 
     print "Linear stretch of predictions to [0,1]"
     y_submission = (y_submission - y_submission.min()) / (y_submission.max() - y_submission.min())
-
+    y_test[y_test==1].index
+    u.roc_auc_score(y_test,y_submission,average='micro', sample_weight=None)
+    u.roc_auc_score(y_test,y_submission,average='macro', sample_weight=None)
+    u.roc_auc_score(y_test,y_submission,average='weighted', sample_weight=None)
+    u.roc_auc_score(y_test,y_submission,average='samples', sample_weight=None)
     print "Saving Results."
-    np.savetxt(fname='test.csv', X=y_submission, fmt='%0.9f')
+    np.savetxt(fname='y_submission1.csv', X=y_submission, fmt='%0.9f')
     
